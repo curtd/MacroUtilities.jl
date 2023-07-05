@@ -119,6 +119,25 @@ module TestMacroUtilities
 
             end
         end
+        @testset "Macro parsing" begin 
+            @testset "MacroCall" begin 
+                @test_cases begin 
+                    input                                   | output 
+                    :x                                      | nothing
+                    Expr(:macrocall, Symbol("@a"), nothing) | MacroCall(; name=Symbol("@a"), line=MacroUtilities.not_provided, args=[])
+                    Expr(:macrocall, Expr(:., :Mod, Symbol("@a")), LineNumberNode(1, :a), :b, :(f(x))) | MacroCall(; name=Expr(:., :Mod, Symbol("@a")), line=LineNumberNode(1, :a), args=Any[:b, :(f(x))])
+                    @test isequal(from_expr(MacroCall, input), output)
+                end
+                expr = KVExpr(key=:key1, value=false)
+                m = MacroCall(; name=Symbol("@a"))
+                result = m(expr)
+                @Test result isa MacroCall
+                @Test result.name == Symbol("@a")
+                @Test MacroUtilities.is_not_provided(result.line)
+                @Test result.args == Any[expr]
+                @Test to_expr(result) == Expr(:macrocall, Symbol("@a"), MacroUtilities.not_provided, :(key1 = false))
+            end
+        end
     
         @testset "Function parsing" begin 
             @testset "FuncArg" begin 
@@ -137,6 +156,18 @@ module TestMacroUtilities
                     @test isequal(from_expr(FuncArg, input), output)
                     @test isequal(to_expr(output), input)
                 end
+                v = [1,2,3]
+                t = :(A.T)
+                f = FuncArg(; name=:a, type=t, value=v)
+                g = FuncArg(f)
+                @Test f == g 
+                @Test !(f.value === g.value)
+                @Test !(f.type === g.type)
+                g = FuncArg(f; name=:b, value=1)
+                @Test g.name == :b
+                @Test g.type == t
+                @Test !(g.type === t)
+                @Test g.is_splat == f.is_splat
             end
             @testset "FuncCall" begin 
                 @test_cases begin 
@@ -149,6 +180,28 @@ module TestMacroUtilities
                     @test isequal(from_expr(FuncCall, input), output)
                     @test isequal(to_expr(output), input)
                 end
+                args = [FuncArg(; value=:(f(x)))]
+                v = [1,2,3]
+                kwargs = MacroUtilities.OrderedDict(:b => FuncArg(; name=:b, value=v))
+                f = FuncCall(; funcname=:(A.f), args=args, kwargs=kwargs )
+                g = FuncCall(f)
+                @Test f == g 
+                @Test !(f.funcname === g.funcname)
+                @Test !(f.args[1] === g.args[1])
+                @Test !(f.kwargs[:b] === g.kwargs[:b])
+                new_args = [FuncArg(; value=:(g(x)))]
+                g = FuncCall(f; args=new_args)
+                @Test !(f.funcname === g.funcname)
+                @Test f.funcname == g.funcname
+                @Test g.args === new_args
+                @Test !(f.kwargs[:b] === g.kwargs[:b])
+                @Test f.kwargs[:b] == g.kwargs[:b]
+
+                f = from_expr(FuncCall, :(A.f(1, 2, 3; k=1, l=2, m=3)))
+                g = map_args(t->FuncArg(t; value=t.value+1), f)
+                @Test to_expr(g) == :(A.f(2,3,4; k=1, l=2, m=3))
+                g = map_kwargs(t->FuncArg(t; value=t.value+1), f)
+                @Test to_expr(g) == :(A.f(1,2,3; k=2, l=3, m=4))
             end
             @testset "FuncDef" begin 
                 ex = quote 
@@ -167,7 +220,12 @@ module TestMacroUtilities
                 @Test isequal(f.doc, ex.args[2].args[3])
 
                 @Test to_expr(f) == ex
-                
+
+                g = map_args(t->FuncArg(t; name=(t.name == :a ? :c : :d)), f)
+                @test to_expr(g).args[2].args[4].args[1].args[1] == :(f(c::T, d::Int; key1 = "abc", kwargs...))
+                g = map_kwargs(t->FuncArg(t; name=Symbol(uppercase(string(t.name)))), f)
+                @test to_expr(g).args[2].args[4].args[1].args[1] == :(f(a::T, b::Int; KEY1 = "abc", KWARGS...))
+
                 ex = quote 
                     function (a, b::Int=1, args...; c)
                         return a

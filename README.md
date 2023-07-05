@@ -38,8 +38,10 @@ julia> @ex_macro key1=1 key2=(a,b,c)
 (key1 = 1, key2 = [:a, :b, :c])
 ```
 
-## Function Parsing 
-Depending on the structure and purpose of your macro, you may also need to parse expressions involving function calls or function definitions, in order to transform or extract information from such expressions. This package provides the `FuncDef`, `FuncCall`, and `FuncArg` types, along with the `from_expr` and `to_expr` functions, for extracting information from function expressions. 
+## Expression Parsing 
+Depending on the structure and purpose of your macro, you may also need to parse expressions involving various types of expressions, such as function calls or function definitions, in order to transform or extract information from them.  
+
+This package provides various high-level syntactical constructs such as the `FuncDef`, `FuncCall`, and `FuncArg` types, along with the `from_expr` and `to_expr` functions, for extracting information from function expressions. 
 
 ```julia
 julia> ex = quote 
@@ -52,10 +54,10 @@ julia> ex = quote
         end
 julia> f = from_expr(FuncDef, ex)
        FuncDef - begin
-           #= REPL[140]:2 =#
-           #= REPL[140]:2 =# Core.@doc "    f(a, b; key1, kwargs...)\n" function f(a::T, b::Int; key1 = "abc", kwargs...) where T
-                   #= REPL[140]:5 =#
-                   #= REPL[140]:6 =#
+           #= REPL[2]:2 =#
+           #= REPL[2]:2 =# Core.@doc "    f(a, b; key1, kwargs...)\n" function f(a::T, b::Int; key1 = "abc", kwargs...) where T
+                   #= REPL[2]:5 =#
+                   #= REPL[2]:6 =#
                    return nothing
                 end
        end
@@ -71,7 +73,7 @@ julia> f.kwargs
        :kwargs => FuncArg - kwargs...
 
 julia> f.line
-       :(#= REPL[140]:2 =#)
+       :(#= REPL[2]:2 =#)
 
 julia> f.whereparams
        1-element view(::Vector{Any}, 2:2) with eltype Any:
@@ -79,15 +81,51 @@ julia> f.whereparams
 
 julia> to_expr(f)
        quote
-       #= REPL[140]:2 =#
-       #= REPL[140]:2 =# Core.@doc "    f(a, b; key1, kwargs...)\n" function f(a::T, b::Int; key1 = "abc", kwargs...) where T
-            #= REPL[140]:5 =#
-            #= REPL[140]:6 =#
+       #= REPL[2]:2 =#
+       #= REPL[2]:2 =# Core.@doc "    f(a, b; key1, kwargs...)\n" function f(a::T, b::Int; key1 = "abc", kwargs...) where T
+            #= REPL[2]:5 =#
+            #= REPL[2]:6 =#
             return nothing
        end
        end
 ```
 
+You can also apply transformations to the arguments or keyword arguments of `f` with the `map_args` and `map_kwargs` functions, respectively.
+
+```julia
+julia> map_args(t->FuncArg(t; name=Symbol(uppercase(string(t.name)))), f) |> to_expr
+       quote
+       #= REPL[2]:2 =#
+       #= REPL[2]:2 =# Core.@doc "    f(a, b; key1, kwargs...)\n" function f(a::T, b::Int; key1 = "abc", kwargs...) where T
+            #= REPL[2]:5 =#
+            #= REPL[2]:6 =#
+            return nothing
+       end
+       end
+
+julia> map_kwargs(t->FuncArg(t; name=Symbol(uppercase(string(t.name)))), f) |> to_expr
+      quote
+      #= REPL[2]:2 =#
+      #= REPL[2]:2 =# Core.@doc "    f(a, b; key1, kwargs...)\n" function f(a::T, b::Int; KEY1 = "abc", KWARGS...) where T
+              #= REPL[2]:5 =#
+              #= REPL[2]:6 =#
+              return nothing
+          end
+      end
+```
+
+## Macro calls
+You can use the `MacroCall` type to parse macro call expressions, as well as apply the parsed expression to a set of arguments, yielding another `MacroCall`, i.e., 
+```julia 
+julia> m = MacroCall(; name=Symbol("@a"))
+       MacroCall - @a
+
+julia> m_applied = m(:(key=1), :(f(x)))
+       MacroCall - @a key = 1 f(x)
+
+julia> to_expr(m_applied)
+       :(@a key = 1 f(x)) 
+```
 
 ## Similar Packages 
 - [`MacroTools.jl`](https://github.com/FluxML/MacroTools.jl)
