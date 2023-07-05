@@ -4,7 +4,6 @@
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://curtd.github.io/MacroUtilities.jl/dev/)
 [![Build Status](https://github.com/curtd/MacroUtilities.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/curtd/MacroUtilities.jl/actions/workflows/CI.yml?query=branch%3Amain)
 
-# MacroUtilities
 `MacroUtilities.jl` provides useful utilities for manipulating expressions and writing macros in Julia.
 
 ## Keyword Arguments From Expressions

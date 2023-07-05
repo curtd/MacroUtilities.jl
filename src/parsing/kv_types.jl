@@ -36,12 +36,12 @@ function _from_expr(::Type{KVSpecExpr}, expr)
     spec = KVSpecExpr(; key=_key)
 
     args = @switch _value begin 
-        @case Expr(:tuple, args...) 
+        @case Expr(:tuple, args...) || Expr(:vect, args...)
            args
         @case Expr(:(=), key, value)
             [_value]
         @case _ 
-            return ArgumentError("In expression, `$(_kv.key) = rhs`, rhs (= `$(_kv.value)`) is not a valid key-value specifier expression")
+            return ArgumentError("In expression, `$(_key) = rhs`, rhs (= `$(_value)`) is not a valid key-value specifier expression")
     end
     for kwarg in args 
         kv = _from_expr(KVExpr, kwarg)
