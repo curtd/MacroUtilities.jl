@@ -37,6 +37,17 @@ module TestMacroUtilities
     end
 
     @testset "MacroUtilities.jl" begin
+        @testset "to_expr" begin 
+            @test_cases begin 
+                input                  |       output
+                [1,2,3]                | :([1,2,3])
+                [1.0,2.0,3.0]          | :([1.0,2.0,3.0])
+                [false,true]           | :([false,true])
+                ["a","b"]              | :(["a","b"])
+                Dict(:a => 1, :b => 2) | :(Dict{$(Symbol),$(Int)}( :a => 1, :b => 2 ))
+                @test isequal(to_expr(input), output)
+            end
+        end
         @testset "List expr" begin 
             @test_cases begin 
                 input           |  T      | output

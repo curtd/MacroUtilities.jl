@@ -1,3 +1,22 @@
+"""
+    NotProvided
+
+Placeholder type to represent the absence of a field.
+"""
+struct NotProvided end 
+
+const not_provided = NotProvided()
+
+Base.show(io::IO, ::NotProvided) = print(io, "not_provided")
+
+"""
+    is_not_provided(x) -> Bool 
+
+Returns `true` if the field corresponding to `x` is not provided, `false` otherwise. 
+"""
+is_not_provided(::NotProvided) = true 
+is_not_provided(x) = false
+
 function _from_expr end
 
 """
@@ -34,14 +53,6 @@ function from_expr(::Type{T}, expr; throw_error::Bool=false, kwargs...) where {T
     return nothing
 end
 
-"""
-    to_expr(x) -> Expr 
-
-Converts `x` to an `Expr` representation
-"""
-function to_expr end
-
-
 function _from_expr(::Type{Vector{T}}, expr::S) where {T, S}
     @switch expr begin 
         @case (Expr(:vect, args...) || Expr(:tuple, args...))
@@ -62,20 +73,22 @@ function _from_expr(::Type{Vector{T}}, expr::S) where {T, S}
 end
 
 """
-    NotProvided
+    to_expr(x) -> Expr 
 
-Placeholder type to represent the absence of a field.
+Converts `x` to an `Expr` representation
 """
-struct NotProvided end 
+function to_expr(x)
+    return :($x)
+end
+to_expr(x::Symbol) = QuoteNode(x)
+to_expr(x::Expr) = x
 
-const not_provided = NotProvided()
+function to_expr(v::Vector)
+    return Expr(:vect, to_expr.(v)...)
+end
 
-Base.show(io::IO, ::NotProvided) = print(io, "not_provided")
-
-"""
-    is_not_provided(x) -> Bool 
-
-Returns `true` if the field corresponding to `x` is not provided, `false` otherwise. 
-"""
-is_not_provided(::NotProvided) = true 
-is_not_provided(x) = false
+function to_expr(d::Dict)
+    K = keytype(d)
+    V = valtype(d)
+    return :(Dict{$K, $V}($([ Expr(:call, :(=>), to_expr(k), to_expr(v)) for (k,v) in pairs(d) ]...)))
+end
