@@ -66,6 +66,14 @@ module TestMacroUtilities
             @testthrows "Input expression `f(a)` is not a list expression" from_expr(Vector{Bool}, :(f(a)), throw_error=true)
         end
 
+        @testset "BlockExpr" begin
+            expr = BlockExpr(KVExpr(; key=:a, value=1))
+            @Test to_expr(expr) == Expr(:block, :(a = 1))
+            expr = [KVExpr(; key=:a, value=1); KVExpr(; key=:b, value=false)]
+            @Test expr isa BlockExpr
+            @Test to_expr(expr) == Expr(:block, :(a = 1), :(b = false))
+        end
+
         @testset "Keyword arguments from Expr" begin 
             @testset "Expression parsing" begin 
                 @test_cases begin 
@@ -135,7 +143,7 @@ module TestMacroUtilities
                 @Test result.name == Symbol("@a")
                 @Test MacroUtilities.is_not_provided(result.line)
                 @Test result.args == Any[expr]
-                @Test to_expr(result) == Expr(:macrocall, Symbol("@a"), MacroUtilities.not_provided, :(key1 = false))
+                @Test to_expr(result) == Expr(:macrocall, Symbol("@a"), nothing, :(key1 = false))
             end
         end
     

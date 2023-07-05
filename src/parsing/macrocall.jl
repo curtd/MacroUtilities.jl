@@ -4,7 +4,7 @@
 Matches a macro call expression. A `MacroCall` object can be applied to one or more expressions, yielding another `MacroCall`. 
 """
 Base.@kwdef struct MacroCall 
-    name::Union{Symbol, Expr, GlobalRef}
+    name::Union{Symbol, QuoteNode, Expr, GlobalRef}
     line::Union{LineNumberNode, NotProvided} = not_provided
     args::Vector{Any} = Any[]
 end
@@ -34,7 +34,7 @@ function _from_expr(::Type{MacroCall}, expr)
 end
 
 function to_expr(m::MacroCall)
-    return Expr(:macrocall, m.name, m.line, to_expr_noquote.(m.args)...)
+    return Expr(:macrocall, m.name, is_not_provided(m.line) ? nothing : m.line, to_expr_noquote.(m.args)...)
 end
 
 """
@@ -72,8 +72,8 @@ function (m::MacroCall)(expr, exprs...)
 end
 
 @static if isdefined(Base, Symbol("@assume_effects"))
-    const assume_effects = MacroCall(; name=Expr(:., :Base, Symbol("@assume_effects")))
-    const assume_foldable = MacroCall(; name=Expr(:., :Base, Symbol("@assume_effects")), args=Any[QuoteNode(:foldable)])
+    const assume_effects = MacroCall(; name=Expr(:., :Base, QuoteNode(Symbol("@assume_effects"))))
+    const assume_foldable = assume_effects(QuoteNode(:foldable))
 else
     const assume_effects = TakeLastMap()
     const assume_foldable = IdentityMap()

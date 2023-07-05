@@ -128,7 +128,7 @@ end
 
 Matches a function call expression
 """
-Base.@kwdef struct FuncCall 
+Base.@kwdef struct FuncCall <: AbstractExpr
     funcname::Union{NotProvided, Symbol, Expr}
     args::Vector{FuncArg} = Vector{FuncArg}()
     kwargs::OrderedDict{Symbol, FuncArg} = OrderedDict{Symbol, FuncArg}()
@@ -232,7 +232,7 @@ end
 
 Matches a function definition expression
 """
-Base.@kwdef struct FuncDef 
+Base.@kwdef struct FuncDef <: AbstractExpr
     header::FuncCall
     head::Symbol
     whereparams::Any = not_provided
