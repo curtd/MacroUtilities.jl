@@ -41,6 +41,7 @@ module TestMacroUtilities
             @test_cases begin 
                 input           |  T      | output
                 :([])           |  Symbol | Symbol[]
+                :(abc)          |  Symbol | [:abc]
                 :([abc])        |  Symbol | [:abc]
                 :([abc, def])   |  Symbol | [:abc, :def]
                 :((abc, def))   |  Symbol | [:abc, :def]

@@ -15,11 +15,18 @@ If `expr` cannot be parsed into an object of type `T`
 
     from_expr(::Type{Vector{T}}, expr::Expr; throw_error::Bool=false)
 
-Parses a `tuple` or `vect` `expr` as a `Vector{T}`. Each argument of `expr` must be of type `T`.
+Parses a `tuple` or `vect` `expr` as a `Vector{T}`. Each argument of `expr` must be of type `T`
+
+====================
+
+    from_expr(::Type{Vector{T}}, input::T; throw_error::Bool=false)
+
+Returns a singleton `Vector{T}` containing `input`
+
 """
 function from_expr(::Type{T}, expr; throw_error::Bool=false, kwargs...) where {T}
     result = _from_expr(T, expr; kwargs...)
-    if result isa T
+    if (T <: Vector && result isa Vector && eltype(result) <: eltype(T)) || result isa T
         return result 
     elseif result isa Exception
         throw_error && throw(result)
@@ -35,13 +42,7 @@ Converts `x` to an `Expr` representation
 function to_expr end
 
 
-"""
-    from_expr(Vector{T}, expr; [throw_error=false]) -> Union{Nothing, Vector{T}}
-    
-If `expr` is of the form `[arg1, arg2, ...]` or `(arg1, arg2, ...)` and each `argi` is of type `T`, returns `T[arg1, arg2...]`.
-
-"""
-function _from_expr(::Type{Vector{T}}, expr) where {T}
+function _from_expr(::Type{Vector{T}}, expr::S) where {T, S}
     @switch expr begin 
         @case (Expr(:vect, args...) || Expr(:tuple, args...))
             output = T[]
@@ -53,6 +54,8 @@ function _from_expr(::Type{Vector{T}}, expr) where {T}
                 end
             end
             return output
+        @case if S <: T end 
+            return [expr]
         @case _
             return ArgumentError("Input expression `$(expr)` is not a list expression")
     end
