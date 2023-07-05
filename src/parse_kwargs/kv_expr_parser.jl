@@ -1,24 +1,3 @@
-"""
-    KVExpr(; key, value)
-
-Matches expressions of the form `key::Symbol = value`
-"""
-Base.@kwdef struct KVExpr 
-    key::Symbol
-    value::Any
-end
-
-function _from_expr(::Type{KVExpr}, expr)
-    @switch expr begin 
-        @case (Expr(:(=), key, value) || Expr(:kw, key, value)) && if key isa Symbol end 
-            return KVExpr(; key, value)
-        @case _ 
-            return ArgumentError("Expression `$expr` is not of the form `key = value`")
-    end
-end
-
-to_expr(k::KVExpr) = Expr(:(=), k.key, k.value)
-
 Base.@kwdef mutable struct KVSpecExpr 
     key::Symbol
     expected_types::Set{Any} = Set()

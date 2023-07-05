@@ -1,18 +1,3 @@
-Base.@kwdef struct AssignExpr 
-    lhs::Any 
-    rhs::Any
-    allow_kw::Bool
-end
-
-function _from_expr(::Type{AssignExpr}, expr; allow_kw::Bool=true)
-    @switch expr begin 
-        @case Expr(:(=), lhs, rhs) || (Expr(:kw, lhs, rhs) && if allow_kw end)
-            return AssignExpr(; lhs, rhs, allow_kw)
-        @case _ 
-            return ArgumentError("Input expression `$expr` is not of the form `lhs = rhs`")
-    end
-end 
-
 """
     FuncArg(; name, type, value::Any, is_splat::Bool)
 
@@ -39,6 +24,18 @@ Base.@kwdef struct FuncArg
         return new(name, type, value, is_splat)
     end
 end
+
+"""
+    FuncArg(f::FuncArg; [name, type, value, is_splat])
+
+Returns a new copy of `f`, with optional `name`, `type`, `value`, or `is_splat` overridden by the keyword argumnets. 
+
+"""
+function FuncArg(f::FuncArg; name::Union{NotProvided, Symbol}=f.name, type::Union{NotProvided, Symbol, Expr}=( f.type isa Expr ? deepcopy(f.type) : f.type), value=deepcopy(f.value), is_splat::Bool=f.is_splat)
+    return FuncArg(name, type, value, is_splat)
+end
+
+Base.copy(f::FuncArg) = FuncArg(f)
 
 Base.:(==)(x::FuncArg, y::FuncArg) = all(getfield(x,k) == getfield(y,k) for k in fieldnames(FuncArg))
 
@@ -68,9 +65,6 @@ function Base.show(io::IO, f::FuncArg)
         end
     end
 end
-
-arg_name(f::FuncArg) = f.name 
-arg_value(f::FuncArg) = f.value
 
 function _from_expr(::Type{FuncArg}, expr)
     _assigned = from_expr(AssignExpr, expr; throw_error=false, allow_kw=true)
@@ -134,10 +128,19 @@ end
 
 Matches a function call expression
 """
-Base.@kwdef struct FuncCall
+Base.@kwdef struct FuncCall <: AbstractExpr
     funcname::Union{NotProvided, Symbol, Expr}
     args::Vector{FuncArg} = Vector{FuncArg}()
     kwargs::OrderedDict{Symbol, FuncArg} = OrderedDict{Symbol, FuncArg}()
+end
+
+"""
+    FuncCall(f::FuncCall; [funcname, args, kwargs])
+
+Returns a new copy of `f`, with optional `funcname`, `args`, or `kwargs` overridden by the keyword argumnets. 
+"""
+function FuncCall(f::FuncCall; funcname::Union{NotProvided, Symbol, Expr}=(f.funcname isa Expr ? deepcopy(f.funcname) : f.funcname), args::Vector{FuncArg} = [copy(arg) for arg in f.args], kwargs::OrderedDict{Symbol, FuncArg} = OrderedDict{Symbol, FuncArg}( k => copy(v) for (k,v) in pairs(f.kwargs)))
+    return FuncCall(funcname, args, kwargs)
 end
 
 Base.:(==)(x::FuncCall, y::FuncCall) = all(getfield(x,k) == getfield(y,k) for k in fieldnames(FuncCall))
@@ -197,6 +200,29 @@ function to_expr(f::FuncCall)
     return output
 end
 
+"""
+    map_args(f, expr::FuncCall) -> FuncCall
+    map_args(f, expr::FuncDef) -> FuncCall
+
+Transform the `expr` by applying `f(FuncArg) -> FuncArg` to each of its arguments
+"""
+function map_args(f, expr::FuncCall)
+    new_args = map(f, expr.args)::Vector{FuncArg}
+    return FuncCall(expr; args=new_args)
+end
+
+"""
+    map_kwargs(f, expr::FuncCall) -> FuncCall
+    map_kwargs(f, expr::FuncDef) -> FuncCall
+
+Transform the `expr` by applying `f(FuncArg) -> FuncArg` to each of its keyword arguments
+"""
+function map_kwargs(f, expr::FuncCall)
+    new_kwarg_vals = map(f, collect(values(expr.kwargs)))::Vector{FuncArg}
+    any( is_not_provided(v.name) for v in new_kwarg_vals) && throw(ArgumentError("Cannot unset `name` in keyword argument map"))
+    return FuncCall(expr; kwargs=OrderedDict{Symbol,FuncArg}( v.name => v for v in new_kwarg_vals))
+end
+
 function Base.show(io::IO, f::FuncCall)
     print(io, "FuncCall - ", to_expr(f))
 end
@@ -206,7 +232,7 @@ end
 
 Matches a function definition expression
 """
-Base.@kwdef struct FuncDef
+Base.@kwdef struct FuncDef <: AbstractExpr
     header::FuncCall
     head::Symbol
     whereparams::Any = not_provided
@@ -216,7 +242,26 @@ Base.@kwdef struct FuncDef
     doc::Union{String, NotProvided} = not_provided
 end
 
+"""
+    FuncDef(f::FuncDef; [header, head, whereparams, return_type, body, line, doc)
+
+Returns a new copy of `f`, with optional `header`, `head`, `whereparams`, `return_type`, `body`, `line`, or `doc` values overridden by the keyword arguments. 
+"""
+function FuncDef(f::FuncDef; header::FuncCall=FuncCall(f.header), head::Symbol=f.head, whereparams=deepcopy(f.whereparams), return_type=deepcopy(f.return_type), body=deepcopy(f.body), line::Union{LineNumberNode, NotProvided}=f.line, doc::Union{String, NotProvided}=f.doc)
+    return FuncDef(header, head, whereparams, return_type, body, line, doc)
+end
+
 Base.:(==)(x::FuncDef, y::FuncDef) = all(getfield(x,k) == getfield(y,k) for k in fieldnames(FuncDef))
+
+function map_args(f, expr::FuncDef)
+    new_header = map_args(f, expr.header)
+    return FuncDef(expr; header=new_header)
+end
+
+function map_kwargs(f, expr::FuncDef)
+    new_header = map_kwargs(f, expr.header)
+    return FuncDef(expr; header=new_header)
+end
 
 Base.propertynames(::Type{FuncDef}) = (:funcname, :args, :kwargs, :header, :head, :whereparams, :return_type, :body, :line, :doc)
 
@@ -236,11 +281,14 @@ function _from_expr(::Type{FuncDef}, expr)
         for arg in expr.args 
             if arg isa LineNumberNode
                 line = arg 
-            elseif Meta.isexpr(arg, :macrocall) && (arg.args[1] isa GlobalRef && arg.args[1].mod == Core && arg.args[1].name == Symbol("@doc")) && length(arg.args) ≥ 4
-                doc = arg.args[3]::String 
-                expr = arg.args[4]
             else
-                expr = arg
+                m = _from_expr(MacroCall, arg)
+                if m isa MacroCall && m.name == doc_macro.name && length(m.args) == 2
+                    doc = m.args[1]::String 
+                    expr = m.args[2]
+                else 
+                    expr = arg
+                end
             end
         end
     end
@@ -289,7 +337,7 @@ function to_expr(f::FuncDef)
     end
     func_expr = Expr(f.head, header_expr, f.body)
     if f.doc isa String 
-        func_expr = Expr(:macrocall, GlobalRef(Core, Symbol("@doc")), f.line isa LineNumberNode ? f.line : nothing, f.doc, func_expr)
+        func_expr = to_expr(doc_macro( f.line isa LineNumberNode ? f.line : nothing, f.doc, func_expr ))
         func_expr = Expr(:block, func_expr)
     end
     if f.line isa LineNumberNode && f.head === :function

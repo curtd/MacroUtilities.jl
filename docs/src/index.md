@@ -4,13 +4,43 @@ CurrentModule = MacroUtilities
 
 # API 
 
-```@autodocs 
-Modules = [MacroUtilities]
-Order   = [:macro, :function, :type] 
-Private = false
+## Keyword Arg Parsing  
+```@docs 
+@parse_kwargs 
 ```
 
+## Syntax Parsing 
+### General 
 ```@docs 
-is_not_provided
+from_expr
+to_expr
 NotProvided
+is_not_provided
+```
+
+### Expression Types
+```@docs 
+AssignExpr
+BlockExpr
+KVExpr
+``` 
+
+### Macro Expressions
+```@docs 
+MacroCall
+doc_macro
+assume_effects
+assume_foldable
+```
+
+### Function Expressions
+```@docs 
+FuncDef
+FuncDef(f::FuncDef)
+FuncCall
+FuncCall(f::FuncCall)
+FuncArg
+FuncArg(f::FuncArg)
+map_args
+map_kwargs
 ```

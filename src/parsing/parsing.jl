@@ -92,3 +92,19 @@ function to_expr(d::Dict)
     V = valtype(d)
     return :(Dict{$K, $V}($([ Expr(:call, :(=>), to_expr(k), to_expr(v)) for (k,v) in pairs(d) ]...)))
 end
+
+to_expr_noquote(x) = to_expr(x)
+to_expr_noquote(x::Symbol) = x
+
+macro assert_type(var, types)
+    type_list = from_expr(Vector{Union{Symbol,Expr}}, types)
+    type_list_str = join(["`"*string(t)*"`" for t in type_list], ", ")
+    first_type, rest = Iterators.peel(type_list)
+    type_valid = :($var isa $(first_type))
+    for type in rest 
+        type_valid = Expr(:||, :($var isa $(type)), type_valid)
+    end
+    return quote 
+        $(type_valid) || throw(ArgumentError("`"*$(string(var))*"` must have be a "*$(type_list_str)*", got typeof("*$(string(var))*") = "*string(typeof($var)))) 
+    end |> esc
+end
