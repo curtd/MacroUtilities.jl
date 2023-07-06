@@ -48,7 +48,7 @@ end
 function _from_expr(::Type{BlockExpr}, expr)
     @switch expr begin 
         @case Expr(:block, args...)
-            return BlockExpr(; args=convert(Vector{Any},collect(args)))
+            return BlockExpr(convert(Vector{Any},collect(args)))
         @case _ 
             return ArgumentError("Input expression `$expr` is not a block `Expr`")
     end

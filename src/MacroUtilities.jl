@@ -8,12 +8,18 @@ module MacroUtilities
     # Expression parsing
     export from_expr, to_expr
 
+    export is_not_provided, is_provided
+
     # Expression parsing types 
     export KVExpr, BlockExpr, AssignExpr
 
     export FuncArg, FuncCall, FuncDef
 
     export map_args, map_kwargs
+
+    export StructDefHeader, StructDefField, StructDef 
+
+    export map_fields
 
     # Macro parsing types
     export MacroCall
