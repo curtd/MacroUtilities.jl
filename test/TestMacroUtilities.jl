@@ -36,7 +36,31 @@ module TestMacroUtilities
         end |> esc
     end
 
+    macro ex_macro2(arg1)
+        @assert_type arg1 Int
+        return quote 
+            arg1 = $arg1 
+        end |> esc
+    end
     @testset "MacroUtilities.jl" begin
+        @testset "Utilities" begin 
+            a = 1
+            @Test @assert_type a Int
+            @Test @assert_type a (Int,Float64,String)
+            @testthrows "Expected type of `a` to be Float64, got typeof(a) = Int64" @assert_type a Float64
+            @testthrows "Expected type of `a` to be one of (Float64, String), got typeof(a) = Int64" @assert_type a (Float64, String)
+            let 
+                @ex_macro2 2
+                @test arg1 == 2
+            end
+            if VERSION ≥ v"1.7"
+                @test_throws "Expected type of `arg1` to be Int, got typeof(arg1) = Float64" @eval module A 
+                    import ..@ex_macro2 
+                    @ex_macro2 1.0
+                end
+            end
+        end
+
         @testset "to_expr" begin 
             @test_cases begin 
                 input                  |       output
