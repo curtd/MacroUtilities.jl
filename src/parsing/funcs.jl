@@ -307,6 +307,12 @@ function _from_expr(::Type{FuncDef}, expr)
         @case _ 
             (args[1], not_provided)    
     end
+    (call_expr, return_type) = @switch call_expr begin 
+        @case Expr(:(::), func, return_type)
+            (func, return_type)
+        @case _ 
+            (call_expr, not_provided)
+    end
     header = _from_expr(FuncCall, call_expr)
     header isa Exception && return header 
     if head === :-> && is_not_provided(line)
@@ -314,7 +320,7 @@ function _from_expr(::Type{FuncDef}, expr)
     elseif head === :(=) && is_not_provided(line)
         line = something(first_lnn_in_block(body), line)
     end
-    return FuncDef(; header, head, whereparams, body, line, doc)
+    return FuncDef(; header, head, return_type, whereparams, body, line, doc)
 end
 
 function to_expr(f::FuncDef)
@@ -331,6 +337,9 @@ function to_expr(f::FuncDef)
         end
     else 
         header_expr = to_expr(f.header)
+    end
+    if !(f.return_type === not_provided)
+        header_expr = Expr(:(::), header_expr, f.return_type)
     end
     if !(f.whereparams === not_provided)
         header_expr = Expr(:where, header_expr, f.whereparams...)
