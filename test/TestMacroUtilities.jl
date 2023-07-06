@@ -246,6 +246,7 @@ module TestMacroUtilities
                 end
                 f = from_expr(FuncDef, ex)
                 @Test isequal(f.header, FuncCall(; funcname=:f, args=[FuncArg(; name=:a, type=:T), FuncArg(; name=:b, type=:Int)], kwargs=MacroUtilities.OrderedDict(:key1 => FuncArg(; name=:key1, value="abc"), :kwargs => FuncArg(; name=:kwargs, is_splat=true))))
+                @Test MacroUtilities.is_not_provided(f.return_type)
                 @Test isequal(f.whereparams, [:T])
                 @Test isequal(f.body, ex.args[2].args[4].args[2])
                 @Test isequal(f.line, ex.args[1])
@@ -259,6 +260,24 @@ module TestMacroUtilities
                 @test to_expr(g).args[2].args[4].args[1].args[1] == :(f(a::T, b::Int; KEY1 = "abc", KWARGS...))
 
                 ex = quote 
+                    """
+                        f(a, b; key1, kwargs...)
+                    """
+                    function f(a::T, b::Int; key1="abc", kwargs...)::Nothing where {T}
+                        return nothing
+                    end
+                end
+                f = from_expr(FuncDef, ex)
+                @Test isequal(f.header, FuncCall(; funcname=:f, args=[FuncArg(; name=:a, type=:T), FuncArg(; name=:b, type=:Int)], kwargs=MacroUtilities.OrderedDict(:key1 => FuncArg(; name=:key1, value="abc"), :kwargs => FuncArg(; name=:kwargs, is_splat=true))))
+                @Test isequal(f.return_type, :Nothing)
+                @Test isequal(f.whereparams, [:T])
+                @Test isequal(f.body, ex.args[2].args[4].args[2])
+                @Test isequal(f.line, ex.args[1])
+                @Test isequal(f.doc, ex.args[2].args[3])
+
+                @Test to_expr(f) == ex
+
+                ex = quote 
                     function (a, b::Int=1, args...; c)
                         return a
                     end
@@ -266,6 +285,7 @@ module TestMacroUtilities
                 f = from_expr(FuncDef, ex)
                 @Test f.head == :function
                 @Test isequal(f.header, FuncCall(; funcname=MacroUtilities.not_provided, args=[FuncArg(; name=:a), FuncArg(; name=:args, is_splat=true)], kwargs=MacroUtilities.OrderedDict(:c => FuncArg(; name=:c), :b => FuncArg(; name=:b, value=1, type=:Int))))
+                @Test MacroUtilities.is_not_provided(f.return_type)
                 @Test isequal(f.whereparams, MacroUtilities.not_provided)
                 @Test isequal(f.body, ex.args[2].args[2])
                 @Test isequal(f.line, ex.args[1])
@@ -285,8 +305,20 @@ module TestMacroUtilities
                 @Test f.head == :->
                 @Test isequal(f.header, FuncCall(; funcname=MacroUtilities.not_provided, args=[FuncArg(; name=:a)], kwargs=MacroUtilities.OrderedDict(:b => FuncArg(; name=:b, value=0))))
                 @Test isequal(f.whereparams, MacroUtilities.not_provided)
+                @Test isequal(f.return_type, MacroUtilities.not_provided)
                 @Test isequal(f.body, ex.args[2])
                 @Test isequal(f.line, ex.args[1].args[2])
+                @Test isequal(f.doc, MacroUtilities.not_provided)
+                @Test to_expr(f) == ex
+
+                ex = :( (a;b=0)::typeof(a) -> a+b )
+                f = from_expr(FuncDef, ex)
+                @Test f.head == :->
+                @Test isequal(f.header, FuncCall(; funcname=MacroUtilities.not_provided, args=[FuncArg(; name=:a)], kwargs=MacroUtilities.OrderedDict(:b => FuncArg(; name=:b, value=0))))
+                @Test isequal(f.whereparams, MacroUtilities.not_provided)
+                @Test isequal(f.return_type, :(typeof(a)))
+                @Test isequal(f.body, ex.args[2])
+                @Test isequal(f.line, ex.args[1].args[1].args[2])
                 @Test isequal(f.doc, MacroUtilities.not_provided)
                 @Test to_expr(f) == ex
 
