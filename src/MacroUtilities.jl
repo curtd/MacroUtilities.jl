@@ -2,6 +2,9 @@ module MacroUtilities
 
     using MLStyle, OrderedCollections
 
+    # General utilities 
+    export @assert_type
+
     # Expression parsing
     export from_expr, to_expr
 
@@ -21,6 +24,8 @@ module MacroUtilities
     export parse_kvs!
 
     export @parse_kwargs
+
+    include("utils.jl")
 
     include("parsing/_parsing.jl")
 

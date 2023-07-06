@@ -6,6 +6,7 @@ version = "1.0.0"
 [deps]
 MLStyle = "d8e11817-5142-5d16-987a-aa16d5891078"
 OrderedCollections = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
+TestingUtilities = "40452611-1178-4e48-bdfc-3af4bebad9c9"
 
 [compat]
 MLStyle = "0.4.17"

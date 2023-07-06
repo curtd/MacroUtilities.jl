@@ -4,6 +4,11 @@ CurrentModule = MacroUtilities
 
 # API 
 
+## General Utilities 
+```@docs 
+@assert_type 
+```
+
 ## Keyword Arg Parsing  
 ```@docs 
 @parse_kwargs 
