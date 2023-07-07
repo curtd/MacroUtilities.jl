@@ -35,16 +35,14 @@ end
 
 function to_expr(h::StructDefHeader)
     expr = h.typename
-    if !(h.parameter === not_provided)
+    if is_provided(h.parameter)
         expr = Expr(:curly, h.typename, h.parameter)
     end
-    if !(h.supertype === not_provided)
+    if is_provided(h.supertype)
         expr = Expr(:(<:), expr, h.supertype)
     end
     return expr 
 end
-
-Base.:(==)(x::StructDefHeader, y::StructDefHeader) = all(getfield(x,k) == getfield(y,k) for k in fieldnames(StructDefHeader))
 
 """
     StructDefHeader(f::StructDefHeader; [typename, parameter, supertype])
@@ -69,8 +67,6 @@ Base.@kwdef struct StructDefField <: AbstractExpr
     name::Symbol
     type::Union{Symbol, Expr, NotProvided} = not_provided
 end
-
-Base.:(==)(x::StructDefField, y::StructDefField) = all(getfield(x,k) == getfield(y,k) for k in fieldnames(StructDefField))
 
 """
     StructDefField(f::StructDefField; [name, type])
@@ -238,3 +234,5 @@ function map_fields(f, def::StructDef)
     end
     return StructDef(def; fields=new_field_defs)
 end
+
+const StructDefFieldOptionalDefault = ExprWOptionalRhs{StructDefField}

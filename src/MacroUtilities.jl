@@ -11,7 +11,13 @@ module MacroUtilities
     export is_not_provided, is_provided
 
     # Expression parsing types 
-    export KVExpr, BlockExpr, AssignExpr
+    export BlockExpr, AssignExpr
+
+    export KVExpr, KeyWOptions
+
+    export NestedDotExpr, NamedTupleArg, NamedTupleExpr
+
+    export ExprWOptionalRhs, ExprWOptions
 
     export FuncArg, FuncCall, FuncDef
 

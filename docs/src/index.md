@@ -28,6 +28,10 @@ is_not_provided
 AssignExpr
 BlockExpr
 KVExpr
+KeyWOptions
+NestedDotExpr
+ExprWOptionalRhs
+ExprWOptions
 ``` 
 
 ### Macro Expressions

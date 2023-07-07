@@ -4,32 +4,65 @@ Base.@kwdef mutable struct KVSpecExpr
     default_value::Any = not_provided
 end
 
-function _from_expr(::Type{KVSpecExpr}, expr)
-    _kv = _from_expr(KVExpr, expr)
-    if _kv isa Exception
-        return _kv
-    else
-        _key = _kv.key::Symbol
-        _value = _kv.value
+Base.:(==)(x::KVSpecExpr, y::KVSpecExpr) =  all(getfield(x,k) == getfield(y,k) for k in fieldnames(KVSpecExpr))
+
+
+function parse_kv_spec_from_type_expr(expr)
+    f = _from_expr(StructDefField, expr)
+    f isa Exception && return f 
+    key = f.name 
+    expected_types = Set()
+    @switch f.type begin 
+        @case Expr(:curly, :Union, args...)
+            for arg in args 
+                push!(expected_types, arg)
+            end
+        @case Expr(:., arg1, arg2) 
+            push!(expected_types, f.type)
+        @case ::Symbol
+            push!(expected_types, f.type)
+        @case _ 
+            return ArgumentError("Unknown Key-Value specification from type expression $(f.type)")
     end
+    return KVSpecExpr(; key=key, expected_types=expected_types)
+end
+
+function _from_expr(::Type{KVSpecExpr}, expr)
+    (_key, to_parse) = @switch expr begin 
+        @case Expr(:(=), lhs, rhs)
+            if lhs isa Symbol
+                _kv = _from_expr(KVExpr, expr)
+            else
+                _kv = _from_expr(ExprWOptionalRhs{Expr}, expr)
+            end
+            _kv isa Exception && return _kv 
+            to_parse = @switch _kv.lhs begin 
+                @case Expr(:(::), arg1, arg2)
+                    kv_spec = parse_kv_spec_from_type_expr(_kv.lhs)
+                    if kv_spec isa KVSpecExpr
+                        kv_spec.default_value = _kv.rhs 
+                    end
+                    return kv_spec
+                @case ::Symbol 
+                    _kv.rhs
+                @case _ 
+                    return ArgumentError("Invalid key-value specification in `$expr`")
+                end
+            (lhs, to_parse)
+        @case Expr(:(::), lhs, rhs)
+            return parse_kv_spec_from_type_expr(expr)
+        @case _ 
+            return ArgumentError("Input expression `$expr` is not a valid keyword argument specifier expression")
+    end
+    args = _from_expr(NamedTupleExpr, to_parse)
+    args isa Exception && return args 
     spec = KVSpecExpr(; key=_key)
 
-    args = @switch _value begin 
-        @case Expr(:tuple, args...) || Expr(:vect, args...)
-           args
-        @case Expr(:(=), key, value)
-            [_value]
-        @case _ 
-            return ArgumentError("In expression, `$(_key) = rhs`, rhs (= `$(_value)`) is not a valid key-value specifier expression")
-    end
-    for kwarg in args 
-        kv = _from_expr(KVExpr, kwarg)
-        if kv isa Exception 
-            return kv 
-        else
-            key = kv.key
-            value = kv.value
-        end
+    for kv in args 
+        key = kv.key 
+        value = kv.value
+
+        is_not_provided(value) && return ArgumentError("Expected `key = value` expression, but got `$key` expression instead")
         if key ∉ allowed_kv_spec_keys 
             return ArgumentError("RHS key `$(key)` must be one of `$(allowed_kv_spec_keys)`")
         end
@@ -45,7 +78,7 @@ function _from_expr(::Type{KVSpecExpr}, expr)
                     return ArgumentError("In `expected_type = rhs` expression, rhs must be a `Symbol` or an `Expr`, got typeof(rhs) = $(typeof(value))")
                 end
             else
-                if kv.value isa Expr
+                if value isa Expr
                     for t in _from_expr(Vector{Union{Symbol, Expr}}, value)
                         push!(spec.expected_types, t)
                     end
@@ -54,7 +87,7 @@ function _from_expr(::Type{KVSpecExpr}, expr)
                 end
             end
         elseif key === :default 
-            if !(spec.default_value === not_provided) 
+            if is_provided(spec.default_value)
                 return ArgumentError("Cannot specify `default` key multiple times")
             end
             spec.default_value = value
@@ -68,8 +101,6 @@ function _from_expr(::Type{KVSpecExpr}, expr)
 end
 
 to_expr(spec::KVSpecExpr) = :(MacroUtilities.KVSpec(; key=$(QuoteNode(spec.key)), expected_types=Set([$(spec.expected_types...)]), default_value=$(is_not_provided(spec.default_value) ? :(MacroUtilities.not_provided) : spec.default_value )))
-
-Base.:(==)(x::KVSpecExpr, y::KVSpecExpr) = all(getfield(x,k) == getfield(y,k) for k in fieldnames(KVSpecExpr))
 
 Base.@kwdef struct KVSpec
     key::Symbol
@@ -102,7 +133,7 @@ Base.@kwdef struct KVExprParser
 end
 
 function KVExprParser(specs::KVSpec...; allow_overwrite::Bool=false, ignore_unknown_keys::Bool=false)
-    parser = KVExprParser(; allow_overwrite, ignore_unknown_keys)
+    parser = KVExprParser(; allow_overwrite=allow_overwrite, ignore_unknown_keys=ignore_unknown_keys)
     for spec in specs
         haskey(parser.spec, spec.key) && throw(ArgumentError("Cannot specify key `$(spec.key)` multiple times"))
         parser.spec[spec.key] = spec
