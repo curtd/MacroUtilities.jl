@@ -17,8 +17,8 @@ julia> using MacroUtilities
 
 julia> macro ex_macro(args...)
        @parse_kwargs args... begin 
-           key1 = (expected_type = Int)
-           key2 = (expected_types = (Bool, Symbol, Vector{Symbol}), default = false)
+           key1::Int 
+           key2::Union{Bool,Symbol,Vector{Symbol}} = false
        end
        return quote 
            (key1 = $key1, key2 = $key2) 
@@ -113,6 +113,8 @@ julia> map_kwargs(t->FuncArg(t; name=Symbol(uppercase(string(t.name)))), f) |> t
           end
       end
 ```
+
+There are additional types for parsing specific, more estoteric syntaxes (such as nested dotted expressions `A.b.c.d.e`) into a more manageable form.
 
 ## Macro calls
 You can use the `MacroCall` type to parse macro call expressions, as well as apply the parsed expression to a set of arguments, yielding another `MacroCall`, i.e., 
