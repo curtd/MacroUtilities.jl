@@ -11,13 +11,13 @@ end
 function parse_kvs!(parser::KVExprParser, exprs)
     for expr in exprs 
         _kv = from_expr(KVExpr, expr; throw_error=true)
-        key = _kv.key
+        key = _kv.lhs
         spec = get(parser.spec, key, nothing)
         if isnothing(spec) 
-            !parser.ignore_unknown_keys && throw(ArgumentError("KVExprParser does not have key `$(key)`, keys(KVExprParser) = ($(join(sort!(string.(collect(keys(parser.spec)))), ", ")))"))
+            !parser.ignore_unknown_keys && throw(ArgumentError("Unexpected key `$(key)`, expected keys = ($(join(sort!(string.(collect(keys(parser.spec)))), ", ")))"))
             return nothing 
         end
-        value = _kv.value
+        value = _kv.rhs
         valueT = typeof(value)
         local set_value 
 
@@ -80,6 +80,11 @@ If the `default` key is provided, e.g.,
 then `key` is set to `default_value` if `args` do not contain a `key = value` expression. 
 
 If the `default` key is not provided, then args must contain a `key = value` expression or an `ArgumentError` will be thrown. 
+
+An alternative, more compact, form to the above expressions is
+```julia
+    key::Union{T1, T2, ..., Tn} = default_value
+```
 
 """
 macro parse_kwargs(args...)

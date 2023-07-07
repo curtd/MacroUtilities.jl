@@ -3,7 +3,7 @@
 
 Matches a macro call expression. A `MacroCall` object can be applied to one or more expressions, yielding another `MacroCall`. 
 """
-Base.@kwdef struct MacroCall 
+Base.@kwdef struct MacroCall <: AbstractExpr
     name::Union{Symbol, QuoteNode, Expr, GlobalRef}
     line::Union{LineNumberNode, NotProvided} = not_provided
     args::Vector{Any} = Any[]
@@ -12,8 +12,6 @@ end
 function Base.show(io::IO, m::MacroCall)
     print(io, "MacroCall - ", to_expr(m))
 end
-
-Base.:(==)(x::MacroCall, y::MacroCall) = all(getfield(x,k) == getfield(y,k) for k in fieldnames(MacroCall))
 
 function _from_expr(::Type{MacroCall}, expr)
     if Meta.isexpr(expr, :macrocall) && length(expr.args) ≥ 2

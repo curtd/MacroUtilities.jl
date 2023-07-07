@@ -53,12 +53,12 @@ function Base.show(io::IO, f::FuncArg)
         else
             print(io, " - ", f.name)
             if is_not_provided(f.type)
-                if !(f.value === not_provided)
+                if is_provided(f.value)
                     print(io, " = ", f.value)
                 end
             else
                 print(io, "::", f.type)
-                if !(f.value === not_provided)
+                if is_provided(f.value)
                     print(io, " = ", f.value)
                 end
             end
@@ -105,8 +105,8 @@ function to_expr(arg::FuncArg; kw_head::Symbol=:kw)
             end
         end
     else
-        if !(arg.name === not_provided)
-            if !(arg.value === not_provided)
+        if is_provided(arg.name)
+            if is_provided(arg.value)
                 base_ex = Expr(kw_head, :($(arg.name)::$(arg.type)), arg.value)
             else
                 base_ex = :($(arg.name)::$(arg.type))
@@ -147,8 +147,6 @@ Returns a new copy of `f`, with optional `funcname`, `args`, or `kwargs` overrid
 function FuncCall(f::FuncCall; funcname::Union{NotProvided, Symbol, Expr}=(f.funcname isa Expr ? deepcopy(f.funcname) : f.funcname), args::Vector{FuncArg} = [copy(arg) for arg in f.args], kwargs::OrderedDict{Symbol, FuncArg} = OrderedDict{Symbol, FuncArg}( k => copy(v) for (k,v) in pairs(f.kwargs)))
     return FuncCall(funcname, args, kwargs)
 end
-
-Base.:(==)(x::FuncCall, y::FuncCall) = all(getfield(x,k) == getfield(y,k) for k in fieldnames(FuncCall))
 
 function _from_expr(::Type{FuncCall}, expr)
     (funcname, in_args) = @switch expr begin 
@@ -265,8 +263,6 @@ function FuncDef(f::FuncDef; header::FuncCall=FuncCall(f.header), head::Symbol=f
     return FuncDef(header, head, whereparams, return_type, body, line, doc)
 end
 
-Base.:(==)(x::FuncDef, y::FuncDef) = all(getfield(x,k) == getfield(y,k) for k in fieldnames(FuncDef))
-
 function map_args(f, expr::FuncDef)
     new_header = map_args(f, expr.header)
     return FuncDef(expr; header=new_header)
@@ -352,10 +348,10 @@ function to_expr(f::FuncDef)
     else 
         header_expr = to_expr(f.header)
     end
-    if !(f.return_type === not_provided)
+    if is_provided(f.return_type)
         header_expr = Expr(:(::), header_expr, f.return_type)
     end
-    if !(f.whereparams === not_provided)
+    if is_provided(f.whereparams)
         header_expr = Expr(:where, header_expr, f.whereparams...)
     end
     func_expr = Expr(f.head, header_expr, f.body)
