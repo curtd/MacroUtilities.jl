@@ -245,6 +245,10 @@ module TestMacroUtilities
                     end
                 end
                 f = from_expr(FuncDef, ex)
+                @Test propertynames(f) == (:funcname, :args, :kwargs, :header, :head, :whereparams, :return_type, :body, :line, :doc)
+                @Test isequal(f.funcname, :f)
+                @Test isequal(f.args, [FuncArg(; name=:a, type=:T), FuncArg(; name=:b, type=:Int)])
+                @Test isequal(f.kwargs, MacroUtilities.OrderedDict(:key1 => FuncArg(; name=:key1, value="abc"), :kwargs => FuncArg(; name=:kwargs, is_splat=true)))
                 @Test isequal(f.header, FuncCall(; funcname=:f, args=[FuncArg(; name=:a, type=:T), FuncArg(; name=:b, type=:Int)], kwargs=MacroUtilities.OrderedDict(:key1 => FuncArg(; name=:key1, value="abc"), :kwargs => FuncArg(; name=:kwargs, is_splat=true))))
                 @Test MacroUtilities.is_not_provided(f.return_type)
                 @Test isequal(f.whereparams, [:T])
@@ -334,6 +338,44 @@ module TestMacroUtilities
                 @Test to_expr(f) == ex 
             end
         end
-     
+        @testset "Struct parsing" begin 
+            ex = quote 
+                struct A end 
+            end
+            f = from_expr(StructDef, ex.args[2])
+            @Test propertynames(f) == (:is_mutable, :header, :lnn, :fields, :constructors, :typename, :parameter, :supertype)
+            @Test f.typename == :A
+            @Test MacroUtilities.is_not_provided(f.supertype)
+            @Test MacroUtilities.is_not_provided(f.parameter)
+            @Test f.is_mutable == false 
+            @Test isempty(f.fields)
+            @Test isempty(f.constructors)
+
+            @Test to_expr(f) == ex.args[2]
+
+            ex = quote 
+                mutable struct A{B<:T} <: C{T}
+                    key1::B
+                    key2::Vector{Any}
+                    key3
+                    A(key1::B) where {B} = new{B}(key1, Any[], key3)
+                    A() = new{Nothing}(nothing, Any[], nothing)
+                end 
+            end
+            f = from_expr(StructDef, ex.args[2])
+            @Test f.typename == :A
+            @Test f.supertype == :(C{T})
+            @Test f.parameter == :(B<:T)
+            @Test f.is_mutable == true 
+            @Test f.fields == [(StructDefField(; name=:key1, type=:B), ex.args[2].args[3].args[1]), (StructDefField(; name=:key2, type=:(Vector{Any})), ex.args[2].args[3].args[3]), (StructDefField(; name=:key3), ex.args[2].args[3].args[5])]
+
+            ref_constructor1 = FuncDef(; head=:(=), header=FuncCall(; funcname=:A, args=[FuncArg(; name=:key1, type=:B)]), whereparams=[:B], line=ex.args[2].args[3].args[7], body=ex.args[2].args[3].args[8].args[2])
+            ref_constructor2 = FuncDef(; head=:(=), header=FuncCall(; funcname=:A,), line=ex.args[2].args[3].args[9], body=ex.args[2].args[3].args[10].args[2])
+            
+            @Test f.constructors == [(ref_constructor1, ex.args[2].args[3].args[7]), (ref_constructor2, ex.args[2].args[3].args[9])]
+
+            @Test to_expr(f) == ex.args[2]
+            
+        end
     end
 end

@@ -3,7 +3,7 @@
 
 Matches a function argument expression
 
-# Arguments 
+# Fields 
 - `name::Union{NotProvided, Symbol} = not_provided`: Name of the argument
 - `type::Union{NotProvided, Symbol, Expr} = not_provided`: Annotated type of the argument. Only valid when `value` is not provided. 
 - `value::Any = not_provided`: Value of the argument. If `name` is provided, this corresponds to the default value of `name` in a method definition. Otherwise, this is the value passed as a function argument 
@@ -124,9 +124,14 @@ function to_expr(arg::FuncArg; kw_head::Symbol=:kw)
 end
 
 """
-    FuncCall(; funcname::Union{NotProvided, Symbol, Expr}, args::Vector{FuncArg}, kwargs::OrderedDict{Symbol, FuncArg})
+    FuncCall(; funcname, args, kwargs)
 
 Matches a function call expression
+
+# Fields 
+- `funcname::Union{NotProvided, Symbol, Expr}`
+- `args::Vector{FuncArg} = Vector{FuncArg}()`
+- `kwargs::OrderedDict{Symbol, FuncArg} = OrderedDict{Symbol, FuncArg}()`
 """
 Base.@kwdef struct FuncCall <: AbstractExpr
     funcname::Union{NotProvided, Symbol, Expr}
@@ -228,9 +233,18 @@ function Base.show(io::IO, f::FuncCall)
 end
 
 """
-    FuncDef(; header::FuncCall, head::Symbol, whereparams::Any, return_type::Any, body::Any, line::Union{LineNumberNode, NotProvided}, doc::Union{LineNumberNode, NotProvided})
+    FuncDef(; header, head, whereparams, return_type, body, line, doc)
 
 Matches a function definition expression
+
+# Fields 
+- `header::FuncCall`
+- `head::Symbol`
+- `whereparams::Any = not_provided`
+- `return_type::Any = not_provided`
+- `body::Any`
+- `line::Union{LineNumberNode, NotProvided} = not_provided`
+- `doc::Union{String, NotProvided} = not_provided`
 """
 Base.@kwdef struct FuncDef <: AbstractExpr
     header::FuncCall
@@ -263,7 +277,7 @@ function map_kwargs(f, expr::FuncDef)
     return FuncDef(expr; header=new_header)
 end
 
-Base.propertynames(::Type{FuncDef}) = (:funcname, :args, :kwargs, :header, :head, :whereparams, :return_type, :body, :line, :doc)
+Base.propertynames(::FuncDef) = (:funcname, :args, :kwargs, :header, :head, :whereparams, :return_type, :body, :line, :doc)
 
 function Base.getproperty(f::FuncDef, name::Symbol)
     if name in (:funcname, :args, :kwargs)

@@ -17,6 +17,13 @@ Returns `true` if the field corresponding to `x` is not provided, `false` otherw
 is_not_provided(::NotProvided) = true 
 is_not_provided(x) = false
 
+"""
+    is_provided(d) -> Bool 
+
+Returns `true` if the field corresponding to `x` is provided, `false` otherwise. 
+"""
+is_provided(x) = !is_not_provided(x)
+
 function _from_expr end
 
 """

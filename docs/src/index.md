@@ -49,3 +49,14 @@ FuncArg(f::FuncArg)
 map_args
 map_kwargs
 ```
+
+### Struct Expressions 
+```@docs 
+StructDefHeader
+StructDefHeader(h::StructDefHeader)
+StructDefField
+StructDefField(d::StructDefField)
+StructDef
+StructDef(d::StructDef)
+map_fields
+```
