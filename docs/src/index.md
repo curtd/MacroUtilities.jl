@@ -38,6 +38,7 @@ ExprWOptions
 ```@docs 
 MacroCall
 doc_macro
+__doc__macro
 assume_effects
 assume_foldable
 ```
@@ -52,6 +53,8 @@ FuncArg
 FuncArg(f::FuncArg)
 map_args
 map_kwargs
+name_only
+names_only
 ```
 
 ### Struct Expressions 
