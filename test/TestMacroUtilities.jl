@@ -248,6 +248,16 @@ module TestMacroUtilities
                     @Test g.type == t
                     @Test !(g.type === t)
                     @Test g.is_splat == f.is_splat
+                    h = name_only(f)
+                    @Test h.name == :a 
+                    @Test h.value |> is_not_provided
+                    @Test h.type |> is_not_provided
+                    @Test h.is_splat == false 
+                    h = name_only(FuncArg(; name=:args, value=:([1,2,3]), is_splat=true))
+                    @Test h.name == :args
+                    @Test h.value |> is_not_provided
+                    @Test h.type |> is_not_provided
+                    @Test h.is_splat == true
                 end
                 @testset "FuncCall" begin 
                     @test_cases begin 
@@ -282,6 +292,14 @@ module TestMacroUtilities
                     @Test to_expr(g) == :(A.f(2,3,4; k=1, l=2, m=3))
                     g = map_kwargs(t->FuncArg(t; value=t.value+1), f)
                     @Test to_expr(g) == :(A.f(1,2,3; k=2, l=3, m=4))
+
+                    g = names_only(f)
+                    @Test to_expr(g) == :(A.f(1, 2, 3; k, l, m))
+
+                    ex = :(A.f(args..., z, h=1; kwargs...))
+                    f = from_expr(FuncCall, ex)
+                    @Test to_expr(f) == ex
+                    @Test to_expr(names_only(f)) == :(A.f(args..., z, h; kwargs...))
                 end
                 @testset "FuncDef" begin 
                     ex = quote 
@@ -305,6 +323,12 @@ module TestMacroUtilities
                     @Test isequal(f.doc, ex.args[2].args[3])
 
                     @Test to_expr(f) == ex
+
+                    g = names_only(f.header)
+                    @Test isequal(g.funcname, :f)
+                    @Test isequal(g.args, [FuncArg(; name=:a), FuncArg(; name=:b)])
+                    @Test isequal(g.kwargs, MacroUtilities.OrderedDict(:key1 => FuncArg(; name=:key1), :kwargs => FuncArg(; name=:kwargs, is_splat=true)))
+                    @Test to_expr(g) == :(f(a, b; key1, kwargs...))
 
                     g = map_args(t->FuncArg(t; name=(t.name == :a ? :c : :d)), f)
                     @test to_expr(g).args[2].args[4].args[1].args[1] == :(f(c::T, d::Int; key1 = "abc", kwargs...))
@@ -336,9 +360,18 @@ module TestMacroUtilities
                     end
                     f = from_expr(FuncDef, ex)
                     @Test f.head == :function
-                    @Test isequal(f.header, FuncCall(; funcname=MacroUtilities.not_provided, args=[FuncArg(; name=:a), FuncArg(; name=:args, is_splat=true)], kwargs=MacroUtilities.OrderedDict(:c => FuncArg(; name=:c), :b => FuncArg(; name=:b, value=1, type=:Int))))
-                    @Test MacroUtilities.is_not_provided(f.return_type)
+                    @Test isequal(f.header, FuncCall(; funcname=MacroUtilities.not_provided, args=[FuncArg(; name=:a), FuncArg(; name=:b, type=:Int, value=1), FuncArg(; name=:args, is_splat=true)], kwargs=MacroUtilities.OrderedDict(:c => FuncArg(; name=:c))))
+                    @Test is_not_provided(f.return_type)
                     @Test isequal(f.whereparams, MacroUtilities.not_provided)
+                    @Test isequal(f.body, ex.args[2].args[2])
+                    @Test isequal(f.line, ex.args[1])
+                    @Test isequal(f.doc, MacroUtilities.not_provided)
+                    @Test to_expr(f) == ex
+
+                    f = from_expr(FuncDef, ex; normalize_kwargs=true)
+                    @Test isequal(f.header, FuncCall(; funcname=MacroUtilities.not_provided, args=[FuncArg(; name=:a), FuncArg(; name=:args, is_splat=true)], kwargs=MacroUtilities.OrderedDict(:c => FuncArg(; name=:c), :b => FuncArg(; name=:b, value=1, type=:Int))))
+                    @Test is_not_provided(f.return_type)
+                    @Test is_not_provided(f.whereparams)
                     @Test isequal(f.body, ex.args[2].args[2])
                     @Test isequal(f.line, ex.args[1])
                     @Test isequal(f.doc, MacroUtilities.not_provided)
@@ -350,18 +383,30 @@ module TestMacroUtilities
                             ex.args[2].args[2]
                         )
                     )
-                    @Test to_expr(f) == ref_ex
+                    @test to_expr(f) == ref_ex
 
-                    ex = :( (a;b=0) -> a+b )
-                    f = from_expr(FuncDef, ex)
+                    expr = :( (a;b=0) -> a+b )
+                    f = from_expr(FuncDef, expr)
                     @Test f.head == :->
                     @Test isequal(f.header, FuncCall(; funcname=MacroUtilities.not_provided, args=[FuncArg(; name=:a)], kwargs=MacroUtilities.OrderedDict(:b => FuncArg(; name=:b, value=0))))
                     @Test isequal(f.whereparams, MacroUtilities.not_provided)
                     @Test isequal(f.return_type, MacroUtilities.not_provided)
-                    @Test isequal(f.body, ex.args[2])
-                    @Test isequal(f.line, ex.args[1].args[2])
+                    @Test isequal(f.body, expr.args[2])
+                    @Test isequal(f.line, expr.args[1].args[2])
                     @Test isequal(f.doc, MacroUtilities.not_provided)
-                    @Test to_expr(f) == ex
+                    @Test to_expr(f) == expr
+
+                    expr = :( (a,c=1;b=0) -> a+b )
+                    f = from_expr(FuncDef, expr)
+                    @Test f.head == :->
+                    @Test isequal(f.header, FuncCall(; funcname=MacroUtilities.not_provided, args=[FuncArg(; name=:a), FuncArg(; name=:c, value=1)], kwargs=MacroUtilities.OrderedDict(:b => FuncArg(; name=:b, value=0))))
+                    @Test isequal(f.whereparams, MacroUtilities.not_provided)
+                    @Test isequal(f.return_type, MacroUtilities.not_provided)
+                    @Test isequal(f.body, expr.args[2])
+                    @Test is_not_provided(f.line)
+                    @Test isequal(f.doc, MacroUtilities.not_provided)
+                    @Test to_expr(f) == expr
+
 
                     ex = :( (a;b=0)::typeof(a) -> a+b )
                     f = from_expr(FuncDef, ex)

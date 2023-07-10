@@ -78,6 +78,14 @@ Parses a `tuple` or `vect` `expr` as a `Vector{T}`. Each argument of `expr` must
 
 Returns a singleton `Vector{T}` containing `input`
 
+====================
+
+    from_expr(::Type{FuncCall}, expr; normalize_kwargs::Bool=false)
+
+Returns a parsed `FuncCall` from `expr`
+
+If `normalize_kwargs = true`, trailing equality expressions (e.g., `f(a, b, c=1)` will be parsed as keyword arguments. 
+
 """
 function from_expr(::Type{T}, expr; throw_error::Bool=false, kwargs...) where {T}
     result = _from_expr(T, expr; kwargs...)

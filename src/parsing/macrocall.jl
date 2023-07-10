@@ -42,6 +42,13 @@ A `MacroCall` corresponding to `Core.@doc`
 """
 const doc_macro = MacroCall(; name=GlobalRef(Core, Symbol("@doc")), line=not_provided, args=[])
 
+"""
+    __doc__macro
+
+A `MacroCall` corresponding to `Core.@__doc__`
+"""
+const __doc__macro = MacroCall(; name=GlobalRef(Core, Symbol("@__doc__")), line=not_provided, args=[])
+
 function (m::MacroCall)(expr, exprs...)
     new_args = copy(m.args)
     add_expr = true
@@ -54,10 +61,10 @@ function (m::MacroCall)(expr, exprs...)
                 line = expr 
                 add_expr = false
             elseif isnothing(expr)
-                line = nothing 
+                line = not_provided 
                 add_expr = false
             else
-                line = nothing 
+                line = not_provided 
             end
         end
     end

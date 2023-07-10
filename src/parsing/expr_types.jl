@@ -59,6 +59,8 @@ to_expr(expr::BlockExpr) = Expr(:block, to_expr.(expr.args)...)
 
 Base.vcat(expr::AbstractExpr, args...) = BlockExpr(expr, args...)
 
+Base.push!(expr::BlockExpr, arg) = push!(expr.args, arg)
+
 """
     AssignExpr(; lhs, rhs, allow_kw)
 

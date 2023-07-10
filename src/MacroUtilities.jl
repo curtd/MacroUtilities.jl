@@ -19,9 +19,9 @@ module MacroUtilities
 
     export ExprWOptionalRhs, ExprWOptions
 
-    export FuncArg, FuncCall, FuncDef
+    export FuncArg, FuncCall, FuncDef, name_only
 
-    export map_args, map_kwargs
+    export map_args, map_kwargs, names_only
 
     export StructDefHeader, StructDefField, StructDef 
 

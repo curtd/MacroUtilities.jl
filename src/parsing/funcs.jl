@@ -124,6 +124,21 @@ function to_expr(arg::FuncArg; kw_head::Symbol=:kw)
 end
 
 """
+    name_only(f::FuncArg; is_splat::Bool=f.is_splat) -> FuncArg
+
+Returns a new `FuncArg` with the type removed from `f`
+
+If `f.name` is provided, also removes the value field from `f`
+"""
+function name_only(f::FuncArg; is_splat::Bool=f.is_splat)
+    if is_not_provided(f.name)
+        return FuncArg(f; name=not_provided, type=not_provided, value=f.value, is_splat=is_splat)
+    else
+        return FuncArg(f; name=f.name, type=not_provided, value=not_provided, is_splat=is_splat)
+    end
+end
+
+"""
     FuncCall(; funcname, args, kwargs)
 
 Matches a function call expression
@@ -142,49 +157,70 @@ end
 """
     FuncCall(f::FuncCall; [funcname, args, kwargs])
 
-Returns a new copy of `f`, with optional `funcname`, `args`, or `kwargs` overridden by the keyword argumnets. 
+Returns a new copy of `f`, with optional `funcname`, `args`, or `kwargs` overridden by the keyword arguments. 
 """
 function FuncCall(f::FuncCall; funcname::Union{NotProvided, Symbol, Expr}=(f.funcname isa Expr ? deepcopy(f.funcname) : f.funcname), args::Vector{FuncArg} = [copy(arg) for arg in f.args], kwargs::OrderedDict{Symbol, FuncArg} = OrderedDict{Symbol, FuncArg}( k => copy(v) for (k,v) in pairs(f.kwargs)))
     return FuncCall(funcname, args, kwargs)
 end
 
-function _from_expr(::Type{FuncCall}, expr)
-    (funcname, in_args) = @switch expr begin 
+function _parse_args_kwargs(in_args)
+    if !isempty(in_args)
+        first_arg, rest = Iterators.peel(in_args)
+        if Meta.isexpr(first_arg, :parameters)
+            _args = rest
+            _kwargs = first_arg.args
+        else
+            _args = in_args 
+            _kwargs = nothing 
+        end
+    else
+        _args = nothing 
+        _kwargs = nothing
+    end
+    return _args, _kwargs
+end
+
+function _from_expr(::Type{FuncCall}, expr; normalize_kwargs::Bool=false)
+    (funcname, _args, _kwargs) = @switch expr begin 
         @case Expr(:call, funcname, in_args...)
-            (funcname, in_args)
+            _args, _kwargs = _parse_args_kwargs(in_args)
+            (funcname, _args, _kwargs)
         @case Expr(:tuple, in_args...) || Expr(:block, in_args...)
-            (not_provided, in_args)
+            lnn_index = findfirst(t->t isa LineNumberNode, in_args)
+            if !isnothing(lnn_index)
+                _args = in_args[1:lnn_index-1]
+                _kwargs = in_args[lnn_index+1:end]
+            else 
+                _args, _kwargs = _parse_args_kwargs(in_args)
+            end
+            (not_provided, _args, _kwargs)
         @case _ 
             return ArgumentError("Input expression `$expr` is not a function call expression")
     end
-    in_args = [in_arg for in_arg in in_args if !(in_arg isa LineNumberNode)] 
     args = FuncArg[]
     kwargs = OrderedDict{Symbol, FuncArg}()
 
-    if !isempty(in_args) 
-        first_arg, rest = Iterators.peel(in_args)
-        if Meta.isexpr(first_arg, :parameters)
-            for kwarg in first_arg.args 
-                parsed = _from_expr(FuncArg, kwarg)
-                parsed isa Exception && return parsed 
-                is_not_provided(parsed.name) && return ArgumentError("Expression `$kwarg` is not a valid keyword argument expression -- no argument name provided")
-                kwargs[parsed.name] = parsed
-            end
-        else
-            rest = in_args
+    if !isnothing(_kwargs)
+        for kwarg in _kwargs
+            parsed = _from_expr(FuncArg, kwarg)
+            parsed isa Exception && return parsed 
+            is_not_provided(parsed.name) && return ArgumentError("Expression `$kwarg` is not a valid keyword argument expression -- no argument name provided")
+            kwargs[parsed.name] = parsed
         end
+    end
 
-        for arg in rest
+    if !isnothing(_args)
+        for arg in _args
             parsed = _from_expr(FuncArg, arg)
             parsed isa Exception && return parsed 
-            if is_not_provided(parsed.value) || is_not_provided(parsed.name)
-                push!(args, parsed)
-            else
-                is_not_provided(parsed.name) && return ArgumentError("Expression `$arg` is not a valid keyword argument expression -- no argument name provided")
+            if normalize_kwargs && is_provided(parsed.name) && is_provided(parsed.value)
                 kwargs[parsed.name] = parsed
+            else
+                push!(args, parsed)
             end
         end
     end
+
     return FuncCall(; funcname, args, kwargs) 
 end
 
@@ -197,8 +233,9 @@ function to_expr(f::FuncCall)
     if !isempty(f.kwargs)
         push!(output.args, Expr(:parameters, [to_expr(v) for v in values(f.kwargs)]...))
     end
-    for arg in f.args
-        push!(output.args, to_expr(arg))
+    for arg in f.args 
+        kw_head = is_not_provided(f.funcname) && is_provided(arg.value) ? :(=) : :(kw)
+        push!(output.args, to_expr(arg; kw_head=kw_head))
     end
     return output
 end
@@ -224,6 +261,17 @@ function map_kwargs(f, expr::FuncCall)
     new_kwarg_vals = map(f, collect(values(expr.kwargs)))::Vector{FuncArg}
     any( is_not_provided(v.name) for v in new_kwarg_vals) && throw(ArgumentError("Cannot unset `name` in keyword argument map"))
     return FuncCall(expr; kwargs=OrderedDict{Symbol,FuncArg}( v.name => v for v in new_kwarg_vals))
+end
+
+"""
+    names_only(f::FuncCall) -> FuncCall
+
+Returns a `FuncCall` derived from `f` with all of the types + values removed from 
+"""
+function names_only(expr::FuncCall)
+    new_args = map(name_only, expr.args)::Vector{FuncArg}
+    new_kwarg_vals = map(name_only, collect(values(expr.kwargs)))::Vector{FuncArg}
+    return FuncCall(expr; args=new_args, kwargs=OrderedDict{Symbol,FuncArg}( v.name => v for v in new_kwarg_vals))
 end
 
 function Base.show(io::IO, f::FuncCall)
@@ -283,7 +331,7 @@ function Base.getproperty(f::FuncDef, name::Symbol)
     end
 end
 
-function _from_expr(::Type{FuncDef}, expr)
+function _from_expr(::Type{FuncDef}, expr; normalize_kwargs::Bool=false)
     line = not_provided
     doc = not_provided
     if Meta.isexpr(expr, :block)
@@ -323,7 +371,7 @@ function _from_expr(::Type{FuncDef}, expr)
         @case _ 
             (call_expr, not_provided)
     end
-    header = _from_expr(FuncCall, call_expr)
+    header = _from_expr(FuncCall, call_expr; normalize_kwargs)
     header isa Exception && return header 
     if head === :-> && is_not_provided(line)
         line = something(first_lnn_in_block(call_expr), line)
@@ -334,14 +382,12 @@ function _from_expr(::Type{FuncDef}, expr)
 end
 
 function to_expr(f::FuncDef)
-    if f.head === :-> 
+    if f.head === :-> && is_provided(f.line)
         header_expr = Expr(:block)
         for arg in f.args 
-            push!(header_expr.args, to_expr(arg))
-        end
-        if f.line isa LineNumberNode
-            push!(header_expr.args, f.line)
-        end
+            push!(header_expr.args, to_expr(arg; kw_head=:(=)))
+        end 
+        push!(header_expr.args, f.line)
         for kwarg in values(f.kwargs)
             push!(header_expr.args, to_expr(kwarg; kw_head=:(=)))
         end
