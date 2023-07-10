@@ -40,14 +40,14 @@ end
 
 A `MacroCall` corresponding to `Core.@doc`
 """
-const doc_macro = MacroCall(; name=GlobalRef(Core, Symbol("@doc")), line=not_provided, args=[])
+const doc_macro = MacroCall(; name=GlobalRef(Core, Symbol("@doc")))
 
 """
     __doc__macro
 
 A `MacroCall` corresponding to `Core.@__doc__`
 """
-const __doc__macro = MacroCall(; name=GlobalRef(Core, Symbol("@__doc__")), line=not_provided, args=[])
+const __doc__macro = MacroCall(; name=GlobalRef(Core, Symbol("@__doc__")))
 
 function (m::MacroCall)(expr, exprs...)
     new_args = copy(m.args)

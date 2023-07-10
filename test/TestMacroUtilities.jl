@@ -51,6 +51,17 @@ module TestMacroUtilities
             arg1 = $arg1 
         end |> esc
     end
+
+    macro ex_macro4(ex)
+        f = from_expr(FuncDef, ex)
+        return to_expr(__doc__macro(f)) |> esc 
+    end
+
+    """
+        some docs
+    """
+    @ex_macro4 ex_macro4_func(x) = 1
+
     @testset "MacroUtilities.jl" begin
         @testset "Utilities" begin 
             a = 1

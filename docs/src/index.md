@@ -38,6 +38,7 @@ ExprWOptions
 ```@docs 
 MacroCall
 doc_macro
+__doc__macro
 assume_effects
 assume_foldable
 ```
