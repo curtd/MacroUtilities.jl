@@ -8,7 +8,7 @@ module MacroUtilities
     # Expression parsing
     export from_expr, to_expr
 
-    export is_not_provided, is_provided
+    export is_not_provided, is_provided, not_provided
 
     # Expression parsing types 
     export BlockExpr, AssignExpr
