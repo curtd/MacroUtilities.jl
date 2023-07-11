@@ -446,7 +446,7 @@ module TestMacroUtilities
                 ex = quote 
                     struct A end 
                 end
-                f = from_expr(StructDef, ex.args[2])
+                f = from_expr(StructDef, ex)
                 @Test propertynames(f) == (:is_mutable, :header, :lnn, :fields, :constructors, :typename, :parameter, :supertype)
                 @Test f.typename == :A
                 @Test MacroUtilities.is_not_provided(f.supertype)
@@ -454,8 +454,9 @@ module TestMacroUtilities
                 @Test f.is_mutable == false 
                 @Test isempty(f.fields)
                 @Test isempty(f.constructors)
+                @Test f.lnn == ex.args[1]
 
-                @Test to_expr(f) == ex.args[2]
+                @Test to_expr(f) == ex
 
                 ex = quote 
                     mutable struct A{B<:T} <: C{T}
@@ -466,7 +467,7 @@ module TestMacroUtilities
                         A() = new{Nothing}(nothing, Any[], nothing)
                     end 
                 end
-                f = from_expr(StructDef, ex.args[2])
+                f = from_expr(StructDef, ex)
                 @Test f.typename == :A
                 @Test f.supertype == :(C{T})
                 @Test f.parameter == :(B<:T)
@@ -478,7 +479,7 @@ module TestMacroUtilities
                 
                 @Test f.constructors == [(ref_constructor1, ex.args[2].args[3].args[7]), (ref_constructor2, ex.args[2].args[3].args[9])]
 
-                @Test to_expr(f) == ex.args[2]
+                @Test to_expr(f) == ex
                 
             end
         end

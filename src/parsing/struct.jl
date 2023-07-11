@@ -140,7 +140,17 @@ function StructDef(f::StructDef; is_mutable::Bool=f.is_mutable, header::StructDe
 end
 
 function _from_expr(::Type{StructDef}, expr)
-    (is_mutable, header_expr, body_expr) = @switch expr begin 
+    local global_lnn
+    structdef_expr = @switch expr begin 
+        @case Expr(:block, arg1, arg2) && if arg1 isa LineNumberNode end && if arg2 isa Expr end 
+            global_lnn = arg1
+            arg2
+        @case Expr(:struct, args...) 
+            expr
+        @case _ 
+            return ArgumentError("Input expression `$expr` is not a valid struct definition expression")
+    end
+    (is_mutable, header_expr, body_expr) = @switch structdef_expr begin 
         @case Expr(:struct, is_mutable, header_expr, body_expr) && if is_mutable isa Bool end 
             (is_mutable, header_expr, body_expr)
         @case _ 
@@ -153,15 +163,15 @@ function _from_expr(::Type{StructDef}, expr)
     num_args = length(body.args)
     fields = Vector{Union{Tuple{StructDefField, LineNumberNode}, Tuple{StructDefField, NotProvided}}}()
     constructors = Vector{Union{Tuple{FuncDef, LineNumberNode}, Tuple{FuncDef, NotProvided}}}()
-    local lnn_global
+ 
     i = 1 
     finished_parsing_fields = false
     while i ≤ num_args
         arg = body.args[i]
         if arg isa LineNumberNode 
             lnn = arg 
-            if !(Base.@isdefined lnn_global)
-                lnn_global = arg
+            if !(Base.@isdefined global_lnn)
+                global_lnn = arg
             end
             if i < num_args 
                 i += 1
@@ -195,7 +205,10 @@ function _from_expr(::Type{StructDef}, expr)
         end
         i += 1
     end
-    return StructDef(; is_mutable, lnn=lnn_global, header, fields, constructors)
+    if !(Base.@isdefined global_lnn)
+        global_lnn = not_provided
+    end
+    return StructDef(; is_mutable, lnn=global_lnn, header, fields, constructors)
 end
 
 function to_expr(f::StructDef)
@@ -218,7 +231,11 @@ function to_expr(f::StructDef)
     elseif is_provided(f.lnn)
         push!(body.args, f.lnn)
     end
-    return Expr(:struct, f.is_mutable, to_expr(f.header), body)
+    result = Expr(:struct, f.is_mutable, to_expr(f.header), body)
+    if is_provided(f.lnn)
+        result = Expr(:block, f.lnn, result)
+    end
+    return result
 end
 
 """
