@@ -1,15 +1,6 @@
 module TestMacroUtilities 
-    using MacroUtilities
+    using MacroUtilities, MacroUtilities.MLStyle
     using TestingUtilities, Test 
-
-    mutable struct NoThrowTestSet <: Test.AbstractTestSet
-        results::Vector
-        NoThrowTestSet(desc) = new([])
-    end
-    Test.record(ts::NoThrowTestSet, t::Test.Result) = (push!(ts.results, t); t)
-    Test.finish(ts::NoThrowTestSet) = ts.results
-    test_results_match = (results, ref_results)-> all(result isa ref_result for (result, ref_result) in zip(results, ref_results) )
-
 
     if VERSION ≥ v"1.7"
         macro testthrows(msg, ex)
@@ -62,6 +53,21 @@ module TestMacroUtilities
     """
     @ex_macro4 ex_macro4_func(x) = 1
 
+    function test_func_sub(ex)
+        @switch ex begin 
+            @case Expr(:(=), arg1, arg2)
+                return (arg1, arg2)
+            @case _ 
+                return @arg_error ex "Uhoh"
+        end
+    end
+    function test_func(ex)
+        @return_if_exception arg1, arg2 = test_func_sub(ex)
+        return (arg1, arg2)
+    end
+
+    MacroUtilities.field_name(f::ExprWOptions{StructDefField}) = MacroUtilities.field_name(f.lhs)
+
     @testset "MacroUtilities.jl" begin
         @testset "Utilities" begin 
             a = 1
@@ -80,7 +86,6 @@ module TestMacroUtilities
                 end
             end
         end
-
         @testset "to_expr" begin 
             @test_cases begin 
                 input                  |       output
@@ -161,31 +166,77 @@ module TestMacroUtilities
                 @Test to_expr(f) == ex
             end
 
-            @testset "Nested Exprs" begin 
+            @testset "Composite Exprs" begin 
                 ex = :(key = (a=1, b=true))
                 f = from_expr(ExprWOptionalRhs{Symbol}, ex)
                 @Test propertynames(f) == (:lhs, :rhs)
                 @Test f.lhs == :key 
                 @Test f.rhs == ex.args[2]
                 @Test to_expr(f) == ex 
-              
-                ex = :(key = (a=1, b=true))
-                f = from_expr(ExprWOptions{Symbol}, ex)
-                @Test propertynames(f) == (:lhs, :options)
-                @Test f.lhs == :key 
-                @Test f.options == from_expr(NamedTupleExpr, ex.args[2])
-                @Test to_expr(f) == ex 
-                @Test f[:a] == NamedTupleArg(; key=:a, value=1, kw_head=false)
-                @Test f[:b] == NamedTupleArg(; key=:b, value=true, kw_head=false)
-               
-            end
+             
+                @testset "DestructuredAssigmentExpr" begin 
+                    ex = :(a, b, c = f(x))
+                    f = from_expr(DestructuredAssigmentExpr{Any}, ex)
+                    @Test f.lhs_names == [:a, :b, :c]
+                    @Test f.destructure_type == :tuple
+                    @Test f.rhs == :(f(x))
+                    @Test to_expr(f) == ex
 
-            @testset "BlockExpr" begin
-                expr = BlockExpr(KVExpr(; lhs=:a, rhs=1))
-                @Test to_expr(expr) == Expr(:block, :(a = 1))
-                expr = [KVExpr(; lhs=:a, rhs=1); KVExpr(; lhs=:b, rhs=false)]
-                @Test expr isa BlockExpr
-                @Test to_expr(expr) == Expr(:block, :(a = 1), :(b = false))
+                    ex = :((a, b, c) = f(x))
+                    f = from_expr(DestructuredAssigmentExpr{Any}, ex)
+                    @Test f.lhs_names == [:a, :b, :c]
+                    @Test f.destructure_type == :eq_tuple
+                    @Test f.rhs == :(f(x))
+                    @Test to_expr(f) == ex
+
+                    f = from_expr(DestructuredAssigmentExpr{FuncCall}, ex)
+                    @Test f.lhs_names == [:a, :b, :c]
+                    @Test f.destructure_type == :eq_tuple
+                    @Test f.rhs == FuncCall(; funcname=:f, args=[FuncArg(:x)])
+                    @Test to_expr(f) == ex
+
+                    ex = :((; a,b,c) = f(x))
+
+                    f = from_expr(DestructuredAssigmentExpr{FuncCall}, ex)
+                    @Test f.lhs_names == [:a, :b, :c]
+                    @Test f.destructure_type == :eq_namedtuple
+                    @Test f.rhs == FuncCall(; funcname=:f, args=[FuncArg(:x)])
+                    @Test to_expr(f) == ex
+                end
+                @testset "BlockExpr" begin
+                    expr = BlockExpr(KVExpr(; lhs=:a, rhs=1))
+                    @Test to_expr(expr) == Expr(:block, :(a = 1))
+                    expr = [KVExpr(; lhs=:a, rhs=1); KVExpr(; lhs=:b, rhs=false)]
+                    @Test expr isa BlockExpr
+                    @Test to_expr(expr) == Expr(:block, :(a = 1), :(b = false))
+                end
+                @testset "ExprWOptions" begin 
+                    ex = :(key = (a=1, b=true))
+                    f = from_expr(ExprWOptions{Symbol}, ex)
+                    @Test propertynames(f) == (:inner_expr, :options, :lhs, :rhs)
+                    @Test f.lhs == :key 
+                    @Test f.inner_expr == from_expr(AssignExpr{Symbol, NamedTupleExpr}, ex)
+                    @Test f.options == from_expr(NamedTupleExpr, ex.args[2])
+                    @Test to_expr(f) == ex 
+                    @Test f[:a] == NamedTupleArg(; key=:a, value=1, kw_head=false)
+                    @Test f[:b] == NamedTupleArg(; key=:b, value=true, kw_head=false)
+                    @Test Set(keys(f)) == Set([:a, :b])
+                    @Test haskey(f, :a)
+                    @Test haskey(f, :c) == false
+                    f[:c] = true
+                    @Test haskey(f, :c) 
+                    @Test f[:c] == NamedTupleArg(; key=:c, value=true, kw_head=false)
+
+                    ex = :(key)
+                    f = from_expr(ExprWOptions{Symbol}, ex)
+                    @Test f.lhs == :key 
+                    @Test f.inner_expr == AssignExpr(:key, NamedTupleExpr(), false)
+                    @Test isempty(keys(f))
+                    @Test to_expr(f) == ex 
+                    f[:a] = 1 
+                    f[:b] = true 
+                    @Test to_expr(f) == :(key = (a=1, b=true))
+                end
             end
 
             @testset "Keyword arguments from Expr" begin 
@@ -482,7 +533,52 @@ module TestMacroUtilities
                 @Test to_expr(f) == ex
                 
             end
+            @testset "Generalized Struct parsing" begin 
+                A = ExprWOptions{StructDefField}
+                B = @NamedTuple{constructors::FuncDef}
+                ex = quote 
+                    struct A end 
+                end
+                f = from_expr(GeneralizedStructDef{A, B}, ex)
+                @Test f.typename == :A 
+                @Test isempty(keys(f.fields))
+                @Test isempty(f.fields)
+                @Test isempty(f.constructors)
+                @Test to_expr(f) == ex
+
+                ex = quote 
+                    mutable struct A{B<:T} <: C{T}
+                        key1::B = (option1=true, option2=1)
+                        key2::Vector{Any} = (default=Any[], option2=0)
+                        key3
+                        A(key1::B) where {B} = new{B}(key1, Any[], key3)
+                        A() = new{Nothing}(nothing, Any[], nothing)
+                    end 
+                end
+                f = from_expr(GeneralizedStructDef{A, B}, ex)
+                @Test f.typename == :A 
+                @Test keys(f.fields) == Set([:key1, :key2, :key3])
+                @Test f.fields[:key1].options == NamedTupleExpr(:option1 => true, :option2 => 1)
+                @Test f.fields[:key2].options == NamedTupleExpr(:default => :(Any[]), :option2 => 0)
+                @Test f.fields[1].options == NamedTupleExpr(:option1 => true, :option2 => 1)
+                @Test f.fields[2].options == NamedTupleExpr(:default => :(Any[]), :option2 => 0)
+                @Test f.fields[3].options == NamedTupleExpr()
+
+                ref_constructor1 = FuncDef(; head=:(=), header=FuncCall(; funcname=:A, args=[FuncArg(; name=:key1, type=:B)]), whereparams=[:B], line=ex.args[2].args[3].args[7], body=ex.args[2].args[3].args[8].args[2])
+                ref_constructor2 = FuncDef(; head=:(=), header=FuncCall(; funcname=:A,), line=ex.args[2].args[3].args[9], body=ex.args[2].args[3].args[10].args[2])
+                
+                @Test f.constructors == [(ref_constructor1, ex.args[2].args[3].args[7]), (ref_constructor2, ex.args[2].args[3].args[9])]
+                @Test to_expr(f) == ex
+            end
         end
+        @testset "Parsing Macros" begin 
+            @testset "@return_if_exception" begin 
+                y = test_func(:(a = b))
+                @Test y == (:a, :b)
+                @Test test_func(:a) isa ArgumentError
+            end
+        end
+
         @testset "@parse_kwargs" begin 
             @testset "KVSpecExpr" begin 
                 ex = :(key::String)

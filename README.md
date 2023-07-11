@@ -4,7 +4,7 @@
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://curtd.github.io/MacroUtilities.jl/dev/)
 [![Build Status](https://github.com/curtd/MacroUtilities.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/curtd/MacroUtilities.jl/actions/workflows/CI.yml?query=branch%3Amain)
 
-`MacroUtilities.jl` provides useful utilities for manipulating expressions and writing macros in Julia.
+`MacroUtilities.jl` provides semantically meaningful decomposition of Julia syntax. The goal of this package is to help you, the package author, focus on implementing the logic of your macros, rather than the low-level details of manipulating expression syntax. 
 
 ## Keyword Arguments From Expressions
 Although macros operate at an expression level and don't have access to the types of their arguments, it is sometimes useful to access named values with expected literal types such as `String`, `Bool`, `Int`, or `Nothing`. 

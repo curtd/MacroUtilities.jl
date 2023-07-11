@@ -21,18 +21,34 @@ from_expr
 to_expr
 NotProvided
 is_not_provided
+is_provided
+@return_if_exception
 ```
 
-### Expression Types
+### Basic Expression Types
 ```@docs 
-AssignExpr
+NamedTupleArg
+NamedTupleArg(f::NamedTupleArg)
+NamedTupleExpr
+NamedTupleExpr(names::Vector{Symbol})
+```
+
+### Composite Expression Types 
+```@docs 
 BlockExpr
-KVExpr
-KeyWOptions
-NestedDotExpr
+AssignExpr
 ExprWOptionalRhs
+KVExpr
 ExprWOptions
+KeyWOptions
+DestructuredAssigmentExpr{E}
+DestructuredAssigmentExpr{E}(f::DestructuredAssigmentExpr)
 ``` 
+
+### Syntactic Sugar 
+```@docs
+NestedDotExpr
+```
 
 ### Macro Expressions
 ```@docs 
@@ -65,5 +81,6 @@ StructDefField
 StructDefField(d::StructDefField)
 StructDef
 StructDef(d::StructDef)
+GeneralizedStructDef
 map_fields
 ```
