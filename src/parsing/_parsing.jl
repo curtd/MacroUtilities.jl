@@ -1,5 +1,7 @@
 include("util.jl")
-include("expr_types.jl")
+include("types.jl")
+include("expr_types/_expr_types.jl")
+include("parsing_macros.jl")
 include("parsing.jl")
 include("macrocall.jl")
 include("funcs.jl")

@@ -8,22 +8,22 @@ module MacroUtilities
     # Expression parsing
     export from_expr, to_expr
 
-    export is_not_provided, is_provided, not_provided
+    export is_not_provided, is_provided, not_provided, NotProvided, MaybeProvided
 
     # Expression parsing types 
-    export BlockExpr, AssignExpr
+    export AssignExpr, NamedTupleArg, NamedTupleExpr
+    
+    export BlockExpr, ExprWOptionalRhs, KVExpr, ExprWOptions, KeyWOptions, DestructuredAssigmentExpr
 
-    export KVExpr, KeyWOptions
-
-    export NestedDotExpr, NamedTupleArg, NamedTupleExpr
-
-    export ExprWOptionalRhs, ExprWOptions
+    export @arg_error, @return_if_exception
+    
+    export NestedDotExpr
 
     export FuncArg, FuncCall, FuncDef, name_only
 
     export map_args, map_kwargs, names_only
 
-    export StructDefHeader, StructDefField, StructDef 
+    export StructDefHeader, StructDefField, StructDef, GeneralizedStructDef
 
     export map_fields
 
@@ -40,6 +40,8 @@ module MacroUtilities
     include("utils.jl")
 
     include("parsing/_parsing.jl")
+
+    include("transformations/_transformations.jl")
 
     include("parse_kwargs/_parse_kwargs.jl")
 end

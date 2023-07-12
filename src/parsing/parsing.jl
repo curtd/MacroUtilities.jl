@@ -1,29 +1,3 @@
-"""
-    NotProvided
-
-Placeholder type to represent the absence of a field.
-"""
-struct NotProvided end 
-
-const not_provided = NotProvided()
-
-Base.show(io::IO, ::NotProvided) = print(io, "not_provided")
-
-"""
-    is_not_provided(x) -> Bool 
-
-Returns `true` if the field corresponding to `x` is not provided, `false` otherwise. 
-"""
-is_not_provided(::NotProvided) = true 
-is_not_provided(x) = false
-
-"""
-    is_provided(d) -> Bool 
-
-Returns `true` if the field corresponding to `x` is provided, `false` otherwise. 
-"""
-is_provided(x) = !is_not_provided(x)
-
 function _from_expr end
 
 function _from_expr(::Type{Vector{T}}, expr::S) where {T, S}
@@ -54,6 +28,8 @@ function _from_expr(::Type{Symbol}, expr)
 end
 
 _from_expr(::Type{Expr}, expr::Expr) = expr 
+
+_from_expr(::Type{Any}, expr) = expr 
 
 """
     from_expr(::Type{T}, expr; throw_error::Bool=false, kwargs...)
@@ -89,7 +65,7 @@ If `normalize_kwargs = true`, trailing equality expressions (e.g., `f(a, b, c=1)
 """
 function from_expr(::Type{T}, expr; throw_error::Bool=false, kwargs...) where {T}
     result = _from_expr(T, expr; kwargs...)
-    if (T <: Vector && result isa Vector && eltype(result) <: eltype(T)) || result isa T
+    if (T <: Vector && result isa Vector && eltype(result) <: eltype(T)) || result isa T || (T isa UnionAll ) || (!isempty(T.parameters) && result isa T.name.wrapper)
         return result 
     elseif result isa Exception
         throw_error && throw(result)

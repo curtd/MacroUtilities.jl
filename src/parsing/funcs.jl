@@ -28,7 +28,7 @@ end
 """
     FuncArg(f::FuncArg; [name, type, value, is_splat])
 
-Returns a new copy of `f`, with optional `name`, `type`, `value`, or `is_splat` overridden by the keyword argumnets. 
+Returns a new copy of `f`, with optional `name`, `type`, `value`, or `is_splat` overridden by the keyword arguments. 
 
 """
 function FuncArg(f::FuncArg; name::Union{NotProvided, Symbol}=f.name, type::Union{NotProvided, Symbol, Expr}=( f.type isa Expr ? deepcopy(f.type) : f.type), value=deepcopy(f.value), is_splat::Bool=f.is_splat)
@@ -36,6 +36,9 @@ function FuncArg(f::FuncArg; name::Union{NotProvided, Symbol}=f.name, type::Unio
 end
 
 Base.copy(f::FuncArg) = FuncArg(f)
+
+FuncArg(name::Symbol; is_splat::Bool=false) = FuncArg(; name=name, is_splat=is_splat)
+FuncArg(name::Symbol, value; is_splat::Bool=false) = FuncArg(; name=name, value=value, is_splat=is_splat)
 
 Base.:(==)(x::FuncArg, y::FuncArg) = all(getfield(x,k) == getfield(y,k) for k in fieldnames(FuncArg))
 
@@ -67,7 +70,7 @@ function Base.show(io::IO, f::FuncArg)
 end
 
 function _from_expr(::Type{FuncArg}, expr)
-    _assigned = from_expr(AssignExpr, expr; throw_error=false, allow_kw=true)
+    _assigned = from_expr(AssignExpr{Any,Any}, expr; throw_error=false, allow_kw=true)
     if isnothing(_assigned)
         value = not_provided 
         arg_expr = expr
@@ -240,40 +243,6 @@ function to_expr(f::FuncCall)
     return output
 end
 
-"""
-    map_args(f, expr::FuncCall) -> FuncCall
-    map_args(f, expr::FuncDef) -> FuncCall
-
-Transform the `expr` by applying `f(FuncArg) -> FuncArg` to each of its arguments
-"""
-function map_args(f, expr::FuncCall)
-    new_args = map(f, expr.args)::Vector{FuncArg}
-    return FuncCall(expr; args=new_args)
-end
-
-"""
-    map_kwargs(f, expr::FuncCall) -> FuncCall
-    map_kwargs(f, expr::FuncDef) -> FuncCall
-
-Transform the `expr` by applying `f(FuncArg) -> FuncArg` to each of its keyword arguments
-"""
-function map_kwargs(f, expr::FuncCall)
-    new_kwarg_vals = map(f, collect(values(expr.kwargs)))::Vector{FuncArg}
-    any( is_not_provided(v.name) for v in new_kwarg_vals) && throw(ArgumentError("Cannot unset `name` in keyword argument map"))
-    return FuncCall(expr; kwargs=OrderedDict{Symbol,FuncArg}( v.name => v for v in new_kwarg_vals))
-end
-
-"""
-    names_only(f::FuncCall) -> FuncCall
-
-Returns a `FuncCall` derived from `f` with all of the types + values removed from 
-"""
-function names_only(expr::FuncCall)
-    new_args = map(name_only, expr.args)::Vector{FuncArg}
-    new_kwarg_vals = map(name_only, collect(values(expr.kwargs)))::Vector{FuncArg}
-    return FuncCall(expr; args=new_args, kwargs=OrderedDict{Symbol,FuncArg}( v.name => v for v in new_kwarg_vals))
-end
-
 function Base.show(io::IO, f::FuncCall)
     print(io, "FuncCall - ", to_expr(f))
 end
@@ -309,16 +278,6 @@ Returns a new copy of `f`, with optional `header`, `head`, `whereparams`, `retur
 """
 function FuncDef(f::FuncDef; header::FuncCall=FuncCall(f.header), head::Symbol=f.head, whereparams=deepcopy(f.whereparams), return_type=deepcopy(f.return_type), body=deepcopy(f.body), line::Union{LineNumberNode, NotProvided}=f.line, doc::Union{String, NotProvided}=f.doc)
     return FuncDef(header, head, whereparams, return_type, body, line, doc)
-end
-
-function map_args(f, expr::FuncDef)
-    new_header = map_args(f, expr.header)
-    return FuncDef(expr; header=new_header)
-end
-
-function map_kwargs(f, expr::FuncDef)
-    new_header = map_kwargs(f, expr.header)
-    return FuncDef(expr; header=new_header)
 end
 
 Base.propertynames(::FuncDef) = (:funcname, :args, :kwargs, :header, :head, :whereparams, :return_type, :body, :line, :doc)
