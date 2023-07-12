@@ -578,6 +578,12 @@ module TestMacroUtilities
                 
                 @Test f.constructors == [(ref_constructor1, ex.args[2].args[3].args[7]), (ref_constructor2, ex.args[2].args[3].args[9])]
                 @Test to_expr(f) == ex
+
+                g = map_fields(t->ExprWOptions(t; rhs=NamedTupleExpr()), f)
+                @Test g.fields[:key1].options |> isempty 
+                @Test g.fields[:key2].options |> isempty 
+                @Test g.fields[:key3].options |> isempty 
+                @Test all(isequal(getproperty(f, k), getproperty(g, k)) for k in propertynames(f) if k != :fields)
             end
         end
         @testset "Parsing Macros" begin 

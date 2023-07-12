@@ -73,7 +73,7 @@ end
 
 Returns a new copy of `f`, with optional `name` or `type` overridden by the keyword arguments.
 """
-function StructDefField(f::StructDefField; name::Symbol=f.typename, type::Union{Symbol, Expr, NotProvided}=( f.type isa Expr ? deepcopy(f.type) : f.type))
+function StructDefField(f::StructDefField; name::Symbol=f.name, type::Union{Symbol, Expr, NotProvided}=( f.type isa Expr ? deepcopy(f.type) : f.type))
     return StructDefField(name, type)
 end
 
@@ -109,8 +109,10 @@ struct_data_type(::Type{NamedTuple{K, V}}) where {K, V} = NamedTuple{K, Tuple{(V
 function copy_struct_data(::Type{C}, x) where {C}
     new_data = struct_data(C)
     for (key, vals) in pairs(x)
+        new_vals = new_data[key]
         for val in vals 
-            push!(new_data[key], copy(val))
+            expr, lnn = val
+            push!(new_vals, (copy(expr), lnn::MaybeProvided{LineNumberNode}))
         end
     end
     return new_data
@@ -131,7 +133,7 @@ Matches a struct definition. The properties `.typename`, `.parameter`, and `.sup
 Base.@kwdef struct StructDef <: AbstractExpr 
     is_mutable::Bool 
     header::StructDefHeader 
-    lnn::Union{LineNumberNode, NotProvided} = not_provided
+    lnn::MaybeProvided{LineNumberNode} = not_provided
     fields::Vector{Tuple{StructDefField, LineNumberNode}}
     constructors::Vector{Tuple{FuncDef, LineNumberNode}}
 end
@@ -378,8 +380,8 @@ end
 Returns a new copy of `f`, with optional `is_mutable`, `header`, `fields`, or `constructors` overridden by the keyword arguments.
 
 """
-function GeneralizedStructDef(f::GeneralizedStructDef{A,B,C}; is_mutable::Bool=f.is_mutable, header::StructDefHeader=StructDefHeader(f.header), lnn::Union{LineNumberNode, NotProvided}=f.lnn, fields::Vector{Tuple{A, LineNumberNode}} = [(copy(_field), lnn) for (_field, lnn) in f.fields], additional_exprs::C=copy_struct_data(C, f.additional_exprs)) where {A, B, C}
-    return GeneralizedStructDef(is_mutable, header, lnn, fields, additional_exprs)
+function GeneralizedStructDef(f::GeneralizedStructDef{A,B,C}; is_mutable::Bool=f.is_mutable, header::StructDefHeader=StructDefHeader(f.header), lnn::MaybeProvided{LineNumberNode}=f.lnn, fields::Vector{Tuple{A, MaybeProvided{LineNumberNode}}} = [(copy(_field), lnn) for (_field, lnn) in getfield(f, :fields)], additional_exprs::C=copy_struct_data(B, f.additional_exprs)) where {A, B, C}
+    return GeneralizedStructDef{A,B,C}(is_mutable, header, lnn, fields, additional_exprs)
 end
 
 _from_expr(::Type{GeneralizedStructDef{A, B}}, expr) where {A, B} = _from_expr(GeneralizedStructDef{A, B, struct_data_type(B)}, expr)

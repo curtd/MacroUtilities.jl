@@ -70,3 +70,17 @@ function map_fields(f, def::StructDef)
     end
     return StructDef(def; fields=new_field_defs)
 end
+
+"""
+    map_fields(f, def::GeneralizedStructDef{A,B,C}) -> GeneralizedStructDef
+
+Apply the function `f(::A) -> A` to each field definition in `def`
+"""
+function map_fields(f, def::GeneralizedStructDef{A,B,C}) where {A, B, C}
+    _fields = map(f, def.fields)::Vector{A}
+    new_field_defs = Vector{Tuple{A, MaybeProvided{LineNumberNode}}}()
+    for ((_, lnn), new_field) in zip(getfield(def, :fields), _fields)
+        push!(new_field_defs, (new_field, lnn))
+    end
+    return GeneralizedStructDef(def; fields=new_field_defs)
+end

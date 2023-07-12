@@ -37,9 +37,11 @@ NamedTupleExpr(names::Vector{Symbol})
 ```@docs 
 BlockExpr
 AssignExpr
+AssignExpr(f::AssignExpr)
 ExprWOptionalRhs
 KVExpr
 ExprWOptions
+ExprWOptions(f::ExprWOptions)
 KeyWOptions
 DestructuredAssigmentExpr{E}
 DestructuredAssigmentExpr{E}(f::DestructuredAssigmentExpr)
@@ -82,5 +84,7 @@ StructDefField(d::StructDefField)
 StructDef
 StructDef(d::StructDef)
 GeneralizedStructDef
-map_fields
+GeneralizedStructDef(f::GeneralizedStructDef)
+map_fields(f, def::StructDef)
+map_fields(f, def::GeneralizedStructDef{A,B,C}) where {A,B,C}
 ```
