@@ -31,6 +31,8 @@ Base.copy(x::T) where {T<:AbstractExpr} = T(x)
     NamedTupleArg(key::Symbol; kw_head::Bool)
 
 Matches a `key = value` or a `key` argument inside a `NamedTuple` expression
+
+If `kw_head == true`, the expression head is set to `:kw`, otherwise `:(=)`
 """
 Base.@kwdef struct NamedTupleArg <: AbstractExpr 
     key::Symbol
@@ -42,7 +44,7 @@ end
 NamedTupleArg(key::Symbol; kw_head::Bool) = NamedTupleArg(; key, kw_head)
 
 """
-    NamedTupleArg(f::NamedTupleArg; [name, type, value, is_splat])
+    NamedTupleArg(f::NamedTupleArg; [key::Symbol], [value], [is_splat::Bool], [kw_head])
 
 Returns a new copy of `f`, with optional `name`, `type`, `value`, or `is_splat` overridden by the keyword arguments. 
 """
@@ -185,6 +187,11 @@ struct KeyEquals
 end
 (k::KeyEquals)(arg::NamedTupleArg) = arg.key == k.ref_key
 
+"""
+    Base.findfirst(f, ex::NamedTupleExpr) -> Union{Nothing, Int}
+
+Returns the first index `i` such that `f(::NamedTupleArg) -> Bool` returns `true`, or `nothing` if no such index exists. 
+"""
 function Base.findfirst(f, ex::NamedTupleExpr)
     for (i,arg) in enumerate(ex.args)
         f(arg) && return i 
@@ -192,6 +199,11 @@ function Base.findfirst(f, ex::NamedTupleExpr)
     return nothing
 end
 
+"""
+    Base.getindex(f::NamedTupleExpr, key::Symbol) -> NamedTupleArg
+
+Returns the `NamedTupleArg` associated with `key`, or throws an `ErrorException` if none exists
+"""
 function Base.getindex(f::NamedTupleExpr, key::Symbol)
     index = findfirst(KeyEquals(key), f)
     if !isnothing(index)
@@ -219,8 +231,16 @@ function Base.delete!(f::NamedTupleExpr, key::Symbol)
     end
 end
 
+"""
+    Base.setindex!(f::NamedTupleExpr, val::NamedTupleArg, i::Int)
+"""
 Base.setindex!(f::NamedTupleExpr, val::NamedTupleArg, i::Int) = Base.setindex!(f.args, val, i)
 
+"""
+    Base.setindex!(f::NamedTupleExpr, value, key::Symbol)
+
+Sets the `NamedTupleArg` in `f` with `key`, `value` in `f`
+"""
 function Base.setindex!(f::NamedTupleExpr, value, key::Symbol) 
     index = findfirst(KeyEquals(key), f)
     rhs = NamedTupleArg(; key=key, value=value, kw_head=false)
@@ -231,12 +251,17 @@ function Base.setindex!(f::NamedTupleExpr, value, key::Symbol)
     end
 end
 
-function Base.setindex!(f::NamedTupleExpr, val::NamedTupleArg)
-    index = findfirst(KeyEquals(val.key), f)
+"""
+    Base.setindex!(f::NamedTupleExpr, arg::NamedTupleArg)
+
+Sets the `NamedTupleArg` in `f` with key `arg.key` to `arg`
+"""
+function Base.setindex!(f::NamedTupleExpr, arg::NamedTupleArg)
+    index = findfirst(KeyEquals(arg.key), f)
     if isnothing(index)
-        return push!(f, val)
+        return push!(f, arg)
     else
-        return f[index] = val
+        return f[index] = arg
     end
 end
 

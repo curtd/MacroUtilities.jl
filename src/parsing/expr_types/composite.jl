@@ -75,6 +75,15 @@ function to_expr(f::AssignExpr)
 end
 
 """
+    AssignExpr(f::AssignExpr{L,R}; [lhs::L], [rhs::R], [allow_kw::Bool])
+
+Returns a new copy of `f`, with optional `lhs`, `rhs`, and `allow_kw` overriden by the keyword arguments.
+"""
+function AssignExpr(f::AssignExpr{L, R}; lhs::L=copy(f.lhs), rhs::R=copy(f.rhs), allow_kw::Bool=f.allow_kw) where {L, R}
+    return AssignExpr(lhs, rhs, allow_kw)
+end
+
+"""
     ExprWOptionalRhs{E <: AbstractExpr}(; lhs::E, default=not_provided)
 
 Matches an expression of the form `lhs = default`, where `lhs` is matched by `E`, or an expression matched by `E`
@@ -129,7 +138,7 @@ const KVExpr = ExprWOptionalRhs{Symbol}
 """
     ExprWOptions{E}(; lhs::E, options::NamedTupleExpr)
     ExprWOptions{E}(; inner_expr::AssignExpr{E, NamedTupleExpr})
-    ExprWOptions(lhs::E, options::NamedTupleExpr)
+    ExprWOptions(lhs::E, options::NamedTupleExpr; allow_kw::Bool=false)
 
 Matches an expression of the form `lhs = (key1=value1, ...)` or `lhs`, where `lhs` matches `E`
 
@@ -149,7 +158,16 @@ function ExprWOptions(; lhs=not_provided, options=not_provided, inner_expr::Mayb
     end
 end
 
-ExprWOptions(lhs, options::NamedTupleExpr) = ExprWOptions(AssignExpr(lhs, options))
+ExprWOptions(lhs, options::NamedTupleExpr; allow_kw::Bool=false) = ExprWOptions(AssignExpr(lhs, options, allow_kw))
+
+"""
+    ExprWOptions(f::ExprWOptions{E}; [lhs::E], [rhs::NamedTupleExpr], [allow_kw::Bool])
+
+Returns a new copy of `f`, with optional `lhs`, `rhs`, and `allow_kw` overridden by the keyword arguments.
+"""
+function ExprWOptions(f::ExprWOptions{E}; lhs::E=copy(f.lhs), rhs::NamedTupleExpr=copy(r.rhs), allow_kw::Bool=f.inner_expr.allow_kw) where {E}
+    return ExprWOptions(lhs, rhs; allow_kw)
+end
 
 function _from_expr(::Type{ExprWOptions{E}}, expr; allow_kw::Bool=false) where {E}
     if (f = _from_expr(AssignExpr{E, NamedTupleExpr}, expr; allow_kw=allow_kw); !(f isa Exception))
@@ -162,7 +180,7 @@ function _from_expr(::Type{ExprWOptions{E}}, expr; allow_kw::Bool=false) where {
 end
 
 function to_expr(f::ExprWOptions)
-    if !(isempty(f.inner_expr.rhs))
+    if !(isempty(f.rhs))
         return to_expr(f.inner_expr)
     else 
         return to_expr_noquote(f.inner_expr.lhs)
