@@ -142,13 +142,14 @@ module TestMacroUtilities
                 @Test f[:a] == NamedTupleArg(; key=:a, value=1, kw_head=false)
                 @Test f[:b] == NamedTupleArg(; key=:b, value=:(f(x)), kw_head=false)
                 @testthrows "NamedTupleExpr does not have key `c`" f[:c]
-                @testthrows "Cannot set key `a` in NamedTupleExpr -- key already exists" f[] = NamedTupleArg(; key=:a, value=1, kw_head=false)
+                f[] = NamedTupleArg(; key=:a, value=2, kw_head=false)
+                @Test f[:a] == NamedTupleArg(; key=:a, value=2, kw_head=false)
                 f[] = NamedTupleArg(; key=:c, kw_head=true)
-                @Test to_expr(f) == :((a=1, b=f(x), c))
+                @Test to_expr(f) == :((a=2, b=f(x), c))
                 @Test pop!(f) == NamedTupleArg(; key=:c, kw_head=true)
-                @Test to_expr(f) == ex
-                f[1] = NamedTupleArg(; key=:a, value=2, kw_head=false)
                 @Test to_expr(f) == :((a=2, b=f(x)))
+                f[] = NamedTupleArg(; key=:a, value=1, kw_head=false)
+                @Test to_expr(f) == ex
 
                 ex = :((; a, b=f(x)))
                 f = from_expr(NamedTupleExpr, ex)
@@ -164,6 +165,14 @@ module TestMacroUtilities
                 f = from_expr(NamedTupleExpr, ex)
                 @Test f.args == [NamedTupleArg(; key=:c, kw_head=true), NamedTupleArg(; key=:b, value=:(f(x)), kw_head=true), NamedTupleArg(; key=:d, kw_head=true, is_splat=true), NamedTupleArg(; key=:a, kw_head=false)]
                 @Test to_expr(f) == ex
+
+                f = NamedTupleExpr()
+                f[:a] = 1
+                f[:b] = false 
+                @Test to_expr(f) == :((a=1, b=false))
+                delete!(f, :a)
+                @Test to_expr(f) == :((b=false,))
+
             end
 
             @testset "Composite Exprs" begin 

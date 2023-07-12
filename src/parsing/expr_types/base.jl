@@ -205,18 +205,38 @@ Base.haskey(f::NamedTupleExpr, key::Symbol) = !isnothing(findfirst(KeyEquals(key
 for f in (:length, :iterate, :pop!)
     @eval Base.$f(f::NamedTupleExpr) = Base.$f(f.args) 
 end
-for f in (:iterate, :getindex, :push!)
+for f in (:iterate, :getindex, :push!, :deleteat!)
     @eval Base.$f(f::NamedTupleExpr, arg) = Base.$f(f.args, arg) 
+end
+
+function Base.delete!(f::NamedTupleExpr, key::Symbol)
+    index = findfirst(KeyEquals(key), f)
+    if !isnothing(index)
+        deleteat!(f.args, index)
+        return nothing
+    else
+        error("NamedTupleExpr does not have key `$key`")
+    end
 end
 
 Base.setindex!(f::NamedTupleExpr, val::NamedTupleArg, i::Int) = Base.setindex!(f.args, val, i)
 
+function Base.setindex!(f::NamedTupleExpr, value, key::Symbol) 
+    index = findfirst(KeyEquals(key), f)
+    rhs = NamedTupleArg(; key=key, value=value, kw_head=false)
+    if isnothing(index)
+        return push!(f, rhs)
+    else
+        return f[index] = rhs
+    end
+end
+
 function Base.setindex!(f::NamedTupleExpr, val::NamedTupleArg)
     index = findfirst(KeyEquals(val.key), f)
     if isnothing(index)
-        return Base.push!(f, val)
+        return push!(f, val)
     else
-        error("Cannot set key `$(val.key)` in NamedTupleExpr -- key already exists")
+        return f[index] = val
     end
 end
 
