@@ -26,6 +26,28 @@ Base.:(==)(x::T, y::T) where {T<:AbstractExpr} =  all(getfield(x,k) == getfield(
 Base.copy(x::T) where {T<:AbstractExpr} = T(x)
 
 """
+    UnionExpr(; args::Vector{Union{Symbol, Expr}})
+
+Matches an expression of the form `Union{T1, T2, ...}`
+"""
+Base.@kwdef struct UnionExpr <: AbstractExpr 
+    args::Vector{Union{Symbol, Expr}}
+end
+
+UnionExpr(f::UnionExpr; args::Vector{Union{Symbol, Expr}}=Union{Symbol, Expr}[ arg isa Expr ? copy(arg) : arg for arg in f.args]) = UnionExpr(args)
+
+function _from_expr(::Type{UnionExpr}, expr)
+    @switch expr begin 
+        @case Expr(:curly, :Union, args...)
+            return UnionExpr(convert(Vector{Union{Symbol, Expr}}, collect(args)))
+        @case _ 
+            return ArgumentError("Input expression `$expr` is not a valid UnionExpr expression")
+    end
+end
+
+to_expr(f::UnionExpr) = Expr(:curly, :Union, f.args...)
+
+"""
     NamedTupleArg(; key::Symbol, value=not_provided, is_splat::Bool=false, kw_head::Bool)
 
     NamedTupleArg(key::Symbol; kw_head::Bool)
