@@ -100,6 +100,9 @@ function to_expr(f::NamedTupleArg)
     return expr
 end
 
+unwrap_value((@nospecialize x)) = x 
+unwrap_value(x::NamedTupleArg) = x.value
+
 """
     NamedTupleExpr(args::Vector{NamedTupleArg})
     NamedTupleExpr(; args::Vector{NamedTupleArg})

@@ -50,7 +50,7 @@ function unpack_option_expr(options, unpack_expr; _sourceinfo=nothing, should_th
         local used_default::Bool
         local type_is_valid = false
         if haskey($options, $(QuoteNode(name)))
-            $name = $options[$(QuoteNode(name))].value
+            $name = MacroUtilities.unwrap_value($options[$(QuoteNode(name))])
             used_default = false
         else
             $default_expr

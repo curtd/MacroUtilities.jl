@@ -23,6 +23,10 @@ function test_unpack_options5(ex)
     @unpack_option options b::Bool = 1
     return !b
 end
+function test_unpack_options6(options)
+    @unpack_option options a::Int 
+    return a+1
+end
 function test_unpack_options1throws(ex)
     options = from_expr(NamedTupleExpr, ex)
     @unpack_option should_throw=true options a::Int
@@ -109,10 +113,16 @@ end
             @test test_unpack_options5(input) == result
         end
 
+        @test_cases begin 
+            input              | result 
+            (input=(a=1, b=false), result=2)
+            (input=(a=:ab, b=false), result= ArgumentError("Option `a = ab` has type Symbol, expected type Int"))
+            (input=(b=false,), result = ArgumentError("Option `a` not found in (b = false,)"))
+            @test test_unpack_options6(input) == result
+        end
+
         @testthrows "ArgumentError: Option `a = false` has type Bool, expected type Int" test_unpack_options1throws(:(a=false, b=false))
         @testthrows "ArgumentError: Option `a = false` has type Bool, expected type Int" test_unpack_options1throws(:(a=false, b=false))
-
-
     end
     @testset "@assert_type" begin 
         a = 1
