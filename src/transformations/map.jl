@@ -60,11 +60,11 @@ end
 """
     map_fields(f, def::StructDef) -> StructDef
 
-Apply the function `f(::StructDefField) -> StructDefField` to each field definition in `def`
+Apply the function `f(::TypedVar) -> TypedVar` to each field definition in `def`
 """
 function map_fields(f, def::StructDef)
-    _fields = map(f, first.(def.fields))::Vector{StructDefField}
-    new_field_defs = Vector{Tuple{StructDefField, LineNumberNode}}()
+    _fields = map(f, first.(def.fields))::Vector{TypedVar}
+    new_field_defs = Vector{Tuple{TypedVar, LineNumberNode}}()
     for ((_, lnn), new_field) in zip(def.fields, _fields)
         push!(new_field_defs, (new_field, lnn))
     end

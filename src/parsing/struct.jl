@@ -54,49 +54,6 @@ function StructDefHeader(f::StructDefHeader; typename::Symbol=f.typename, parame
     return StructDefHeader(typename, parameter, supertype)
 end
 
-"""
-    StructDefField(; name, type)
-
-Matches a field definition in a struct definition
-
-# Fields 
-- `name::Symbol`
-- `type::Union{Symbol, Expr, NotProvided} = not_provided`
-"""
-Base.@kwdef struct StructDefField <: AbstractExpr 
-    name::Symbol
-    type::Union{Symbol, Expr, NotProvided} = not_provided
-end
-
-"""
-    StructDefField(f::StructDefField; [name, type])
-
-Returns a new copy of `f`, with optional `name` or `type` overridden by the keyword arguments.
-"""
-function StructDefField(f::StructDefField; name::Symbol=f.name, type::Union{Symbol, Expr, NotProvided}=( f.type isa Expr ? deepcopy(f.type) : f.type))
-    return StructDefField(name, type)
-end
-
-function _from_expr(::Type{StructDefField}, expr)
-    @switch expr begin 
-        @case Expr(:(::), name, type) && if name isa Symbol && (type isa Symbol || type isa Expr) end
-            return StructDefField(; name, type)
-        @case ::Symbol 
-            return StructDefField(; name=expr)
-        @case _ 
-            return ArgumentError("Input expression `$expr` is not a valid field definition")
-    end
-end
-
-field_name(f::StructDefField) = f.name 
-
-function to_expr(f::StructDefField)
-    if is_not_provided(f.type)
-        return f.name 
-    else
-        return Expr(:(::), f.name, f.type)
-    end
-end
 
 function struct_data(::Type{NamedTuple{K, V}}) where {K, V}
     return (; (K[i] => Vector{Tuple{fieldtype(V, i), MaybeProvided{LineNumberNode}}}() for i in 1:length(K) )...)
@@ -127,14 +84,14 @@ Matches a struct definition. The properties `.typename`, `.parameter`, and `.sup
 - `is_mutable::Bool`
 - `header::StructDefHeader`
 - `lnn::Union{LineNumberNode, NotProvided}` = not_provided
-- `fields::Vector{Tuple{StructDefField, LineNumberNode}}`
+- `fields::Vector{Tuple{TypedVar, LineNumberNode}}`
 - `constructors::Vector{Tuple{FuncDef, LineNumberNode}}`
 """
 Base.@kwdef struct StructDef <: AbstractExpr 
     is_mutable::Bool 
     header::StructDefHeader 
     lnn::MaybeProvided{LineNumberNode} = not_provided
-    fields::Vector{Tuple{StructDefField, LineNumberNode}}
+    fields::Vector{Tuple{TypedVar, LineNumberNode}}
     constructors::Vector{Tuple{FuncDef, LineNumberNode}}
 end
 
@@ -158,7 +115,7 @@ end
 Returns a new copy of `f`, with optional `is_mutable`, `header`, `fields`, or `constructors` overridden by the keyword arguments.
 
 """
-function StructDef(f::StructDef; is_mutable::Bool=f.is_mutable, header::StructDefHeader=StructDefHeader(f.header), lnn::Union{LineNumberNode, NotProvided}=f.lnn, fields::Vector{Tuple{StructDefField, LineNumberNode}} = [(copy(_field), lnn) for (_field, lnn) in f.fields], constructors::Vector{Tuple{FuncDef, LineNumberNode}} = [(copy(_def), lnn) for (_def, lnn) in f.constructors])
+function StructDef(f::StructDef; is_mutable::Bool=f.is_mutable, header::StructDefHeader=StructDefHeader(f.header), lnn::Union{LineNumberNode, NotProvided}=f.lnn, fields::Vector{Tuple{TypedVar, LineNumberNode}} = [(copy(_field), lnn) for (_field, lnn) in f.fields], constructors::Vector{Tuple{FuncDef, LineNumberNode}} = [(copy(_def), lnn) for (_def, lnn) in f.constructors])
     return StructDef(is_mutable, header, lnn, fields, constructors)
 end
 
@@ -242,7 +199,7 @@ function _from_expr(::Type{StructDef}, expr)
     @return_if_exception is_mutable, header_expr, body_expr = _parse_struct_expr(structdef_expr)
     @return_if_exception header = _from_expr(StructDefHeader, header_expr)
     @return_if_exception body = _from_expr(BlockExpr, body_expr)
-    @return_if_exception first_body_lnn, fields, additional_exprs = _parse_struct_body(body, StructDefField, NamedTuple{(:constructors,), Tuple{FuncDef}})
+    @return_if_exception first_body_lnn, fields, additional_exprs = _parse_struct_body(body, TypedVar, NamedTuple{(:constructors,), Tuple{FuncDef}})
     if !(Base.@isdefined global_lnn)
         global_lnn = first_body_lnn
     end
@@ -304,7 +261,7 @@ Base.getindex(f::FieldView, index::Int) = f.fields[index][1]
 struct FieldNameEqual
     ref_field_name::Symbol
 end
-(f::FieldNameEqual)(vi) = field_name(vi) == f.ref_field_name
+(f::FieldNameEqual)(vi) = struct_field_name(vi) == f.ref_field_name
 
 function Base.findfirst(f, v::FieldView)
     for (i, arg) in enumerate(v)
@@ -324,7 +281,7 @@ end
 function Base.keys(f::FieldView)
     out_keys = Set{Symbol}()
     for field in f
-        push!(out_keys, field_name(field))
+        push!(out_keys, struct_field_name(field))
     end
     return out_keys
 end
@@ -338,7 +295,7 @@ Matches a struct definition. The properties `.typename`, `.parameter`, and `.sup
 - `is_mutable::Bool`
 - `header::StructDefHeader`
 - `lnn::Union{LineNumberNode, NotProvided}` = not_provided
-- `fields::Vector{Tuple{StructDefField, LineNumberNode}}`
+- `fields::Vector{Tuple{TypedVar, LineNumberNode}}`
 - `constructors::Vector{Tuple{FuncDef, LineNumberNode}}`
 """
 struct GeneralizedStructDef{StructDefFieldType, AdditionalFieldTypes, StructDataType} <: AbstractExpr 
@@ -375,7 +332,7 @@ function Base.getproperty(s::GeneralizedStructDef, name::Symbol)
 end
 
 """
-    GeneralizedStructDef(f::StructDefField; [is_mutable, header, fields, constructors])
+    GeneralizedStructDef(f::TypedVar; [is_mutable, header, fields, constructors])
 
 Returns a new copy of `f`, with optional `is_mutable`, `header`, `fields`, or `constructors` overridden by the keyword arguments.
 

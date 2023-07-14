@@ -11,11 +11,11 @@ module MacroUtilities
     export is_not_provided, is_provided, not_provided, NotProvided, MaybeProvided
 
     # Expression parsing types 
-    export AssignExpr, NamedTupleArg, NamedTupleExpr
+    export UnionExpr, TypedVar, AssignExpr, NamedTupleArg, NamedTupleExpr
     
     export BlockExpr, ExprWOptionalRhs, KVExpr, ExprWOptions, KeyWOptions, DestructuredAssigmentExpr
 
-    export @arg_error, @return_if_exception
+    export @arg_error, @return_if_exception, @unpack_option
     
     export NestedDotExpr
 

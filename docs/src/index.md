@@ -7,6 +7,7 @@ CurrentModule = MacroUtilities
 ## General Utilities 
 ```@docs 
 @assert_type 
+@unpack_option
 ```
 
 ## Keyword Arg Parsing  
@@ -31,6 +32,10 @@ NamedTupleArg
 NamedTupleArg(f::NamedTupleArg)
 NamedTupleExpr
 NamedTupleExpr(names::Vector{Symbol})
+UnionExpr
+UnionExpr(f::UnionExpr)
+TypedVar
+TypedVar(d::TypedVar)
 ```
 
 ### Composite Expression Types 
@@ -80,7 +85,6 @@ names_only
 StructDefHeader
 StructDefHeader(h::StructDefHeader)
 StructDefField
-StructDefField(d::StructDefField)
 StructDef
 StructDef(d::StructDef)
 GeneralizedStructDef
