@@ -20,9 +20,25 @@ macro return_if_exception(ex)
 end
 
 function unpack_option_expr(options, unpack_expr; _sourceinfo=nothing, should_throw::Bool=false)
-    f = from_expr(ExprWOptionalRhs{TypedVar}, unpack_expr; throw_error=true)
-    name = f.lhs.name 
-    type = f.lhs.type 
+    f = from_expr(ExprWOptionalRhs{Any}, unpack_expr; throw_error=true)
+    default_value = f.rhs 
+    expr = f.lhs
+    if (g = from_expr(TypedVar, expr); !isnothing(g))
+        name = g.name 
+        new_name = g.name
+        type = g.type 
+    elseif (g = from_expr(TypedExpr{PairExpr{Symbol,Symbol}}, expr); !isnothing(g))
+        name = g.expr.lhs
+        new_name = g.expr.rhs 
+        type = g.type
+    elseif (g = from_expr(PairExpr{Symbol,Symbol}, expr); !isnothing(g))
+        name = g.lhs 
+        new_name = g.rhs 
+        type = not_provided
+    else
+        throw(@arg_error unpack_expr "Not a valid `@unpack_option` expression")
+    end
+
     valid_types = Any[]
     if is_not_provided(type)
         push!(valid_types, Any)
@@ -33,8 +49,8 @@ function unpack_option_expr(options, unpack_expr; _sourceinfo=nothing, should_th
     else
         push!(valid_types, type)
     end
-    if is_provided(f.rhs)
-        default_expr = :($name = $(f.rhs))
+    if is_provided(default_value)
+        default_expr = :($new_name = $(default_value))
     else
         not_found_error = :(ArgumentError("Option `$($(QuoteNode(name)))` not found in $($(options))"))
         default_expr = should_throw ? :(throw($not_found_error)) : :(return $not_found_error)
@@ -44,24 +60,24 @@ function unpack_option_expr(options, unpack_expr; _sourceinfo=nothing, should_th
     else
         unexpected_type_suffix = ", expected one of types ($(join([string(T) for T in valid_types], ", ")))"
     end
-    unexpected_type_error_from_options = :(ArgumentError("Option `$($(QuoteNode(name))) = $($(name))` has type $(typeof($(name)))"*$unexpected_type_suffix))
-    unexpected_type_error_from_default = :(ArgumentError("Option `$($(QuoteNode(name)))` with default value `$($(name))` has type $(typeof($name))"*$unexpected_type_suffix))
+    unexpected_type_error_from_options = :(ArgumentError("Option `$($(QuoteNode(name))) = $($(new_name))` has type $(typeof($(new_name)))"*$unexpected_type_suffix))
+    unexpected_type_error_from_default = :(ArgumentError("Option `$($(QuoteNode(name)))` with default value `$($(new_name))` has type $(typeof($new_name))"*$unexpected_type_suffix))
     output = Base.remove_linenums!(quote 
         if haskey($options, $(QuoteNode(name)))
-            $name = MacroUtilities.unwrap_value($options[$(QuoteNode(name))])
-            if !($name isa Union{$(valid_types...)} )
+            $new_name = MacroUtilities.unwrap_value($options[$(QuoteNode(name))])
+            if !($new_name isa Union{$(valid_types...)} )
                 $(should_throw ? :(throw($unexpected_type_error_from_options)) : :(return $unexpected_type_error_from_options))
                 $unexpected_type_error_from_options
             else
-                $name
+                $new_name
             end
         else
             $default_expr
-            if !($name isa Union{$(valid_types...)} ) 
+            if !($new_name isa Union{$(valid_types...)} ) 
                 $(should_throw ? :(throw($unexpected_type_error_from_default)) : :(return $unexpected_type_error_from_default))
                 $unexpected_type_error_from_default
             else 
-                $name
+                $new_name
             end
         end
     end)
@@ -89,8 +105,9 @@ If `unpack_expr` is of the form
 - `name::T`, then `options[\$name]` must be of type `T` or an `ArgumentError` will be *returned*
 - `name::Union{T1, T2, ..., Tn}`, then `options[\$name]` must be of type `T1, T2, ...,` or `Tn`
 - `name = default`, then `default_value` will be used if `\$name` is not present in `options`
+- `name => new_name`, is the equivalent to `\$new_name = options[\$name]`
 
-An `unpack_expr` of the form `name::T = default` or `name::Union{T1, T2, ..., Tn} = default` also behaves as expected.
+An `unpack_expr` of the form `(name => new_name)::T`, `name::T = default` or `name::Union{T1, T2, ..., Tn} = default`, etc., also behaves as expected.
 """
 macro unpack_option(options, unpack_expr)
    return unpack_option_expr(options, unpack_expr; _sourceinfo=__source__) |> esc

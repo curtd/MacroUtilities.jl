@@ -33,6 +33,21 @@ function test_unpack_options7(ex)
     @unpack_option options b::Int 
     return a+b
 end
+function test_unpack_rename1(ex)
+    options = from_expr(NamedTupleExpr, ex)
+    @unpack_option options (a=>b)
+    return (b, @isdefined a)
+end
+function test_unpack_rename2(ex)
+    options = from_expr(NamedTupleExpr, ex)
+    @unpack_option options (a=>b)::Int 
+    return (b, @isdefined a)
+end
+function test_unpack_rename3(ex)
+    options = from_expr(NamedTupleExpr, ex)
+    @unpack_option options (a=>b) = 1
+    return b, @isdefined a
+end
 function test_unpack_options1throws(ex)
     options = from_expr(NamedTupleExpr, ex)
     @unpack_option should_throw=true options a::Int
@@ -65,7 +80,6 @@ function test_func2(ex)
     @return_if_exception @unpack_option f a::Int 
     return a+2
 end
-
 
 @testset "Parsing Macros" begin 
     @testset "@return_if_exception" begin 
@@ -136,6 +150,30 @@ end
 
         @testthrows "ArgumentError: Option `a = false` has type Bool, expected type Int" test_unpack_options1throws(:(a=false, b=false))
         @testthrows "ArgumentError: Option `a = false` has type Bool, expected type Int" test_unpack_options1throws(:(a=false, b=false))
+
+        @testset "Variable renaming" begin 
+            @test_cases begin 
+                input              | result 
+                :(a=1, b=false)    | 1
+                :(a="abc")         | "abc"
+                :(b = false)       | ArgumentError("Option `a` not found in $(from_expr(NamedTupleExpr, :(b=false)))")
+                @test result isa ArgumentError ? test_unpack_rename1(input) == result : test_unpack_rename1(input) == (result, false)
+            end
+            @test_cases begin 
+                input              | result 
+                :(a=1, b=false)    | 1
+                :(a="abc")         | ArgumentError("Option `a = abc` has type String, expected type Int")
+                :(b = false)       | ArgumentError("Option `a` not found in $(from_expr(NamedTupleExpr, :(b=false)))")
+                @test result isa ArgumentError ? test_unpack_rename2(input) == result : test_unpack_rename2(input) == (result, false)
+            end
+            @test_cases begin 
+                input              | result 
+                :(a=2, b=false)    | 2
+                :(a="abc")         | "abc"
+                :(b = false)       | 1
+                @test result isa ArgumentError ? test_unpack_rename3(input) == result : test_unpack_rename3(input) == (result, false)
+            end
+        end
     end
     @testset "@assert_type" begin 
         a = 1

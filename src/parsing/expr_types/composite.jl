@@ -84,11 +84,51 @@ function AssignExpr(f::AssignExpr{L, R}; lhs::L=copy(f.lhs), rhs::R=copy(f.rhs),
 end
 
 """
+    PairExpr{L,R}(; lhs::L, rhs::R)
+
+Matches an expression of the form `lhs => rhs` 
+"""
+Base.@kwdef struct PairExpr{L,R} <: AbstractExpr
+    lhs::L 
+    rhs::R
+end
+
+function _from_expr(::Type{PairExpr{L, R}}, expr) where {L, R}
+    @switch expr begin 
+        @case Expr(:call, :(=>), lhs_expr, rhs_expr)
+            lhs = _from_expr(L, lhs_expr)
+            lhs isa Exception && return lhs 
+            
+            rhs = _from_expr(R, rhs_expr)
+            rhs isa Exception && return rhs 
+
+            return PairExpr{L, R}(; lhs, rhs)
+        @case _ 
+            return ArgumentError("Input expression `$expr` is not of the form `lhs => rhs`")
+    end
+end 
+
+function to_expr(f::PairExpr)
+    lhs = to_expr_noquote(f.lhs)
+    rhs = to_expr_noquote(f.rhs)
+    return Expr(:call, :(=>), lhs, rhs)
+end
+
+"""
+    PairExpr(f::PairExpr{L,R}; [lhs::L], [rhs::R])
+
+Returns a new copy of `f`, with optional `lhs` and `rhs` overriden by the keyword arguments.
+"""
+function PairExpr(f::PairExpr{L, R}; lhs::L=copy(f.lhs), rhs::R=copy(f.rhs)) where {L, R}
+    return PairExpr(lhs, rhs)
+end
+
+"""
     ExprWOptionalRhs{E <: AbstractExpr}(; lhs::E, default=not_provided)
 
 Matches an expression of the form `lhs = default`, where `lhs` is matched by `E`, or an expression matched by `E`
 """
-Base.@kwdef struct ExprWOptionalRhs{E <: Union{AbstractExpr, Symbol, Expr}} <: AbstractExpr
+Base.@kwdef struct ExprWOptionalRhs{E} <: AbstractExpr
     lhs::E
     rhs::Any = not_provided
 end
