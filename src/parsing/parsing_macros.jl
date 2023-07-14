@@ -44,26 +44,26 @@ function unpack_option_expr(options, unpack_expr; _sourceinfo=nothing, should_th
     else
         unexpected_type_suffix = ", expected one of types ($(join([string(T) for T in valid_types], ", ")))"
     end
-    unexpected_type_error = :(used_default ? ArgumentError("Option `$($(QuoteNode(name)))` with default value `$($(name))` has type $(typeof($name))"*$unexpected_type_suffix) : ArgumentError("Option `$($(QuoteNode(name))) = $($(name))` has type $(typeof($(name)))"*$unexpected_type_suffix))
-    unexpected_type_expr = should_throw ? :(throw($unexpected_type_error)) : :(return $unexpected_type_error)
+    unexpected_type_error_from_options = :(ArgumentError("Option `$($(QuoteNode(name))) = $($(name))` has type $(typeof($(name)))"*$unexpected_type_suffix))
+    unexpected_type_error_from_default = :(ArgumentError("Option `$($(QuoteNode(name)))` with default value `$($(name))` has type $(typeof($name))"*$unexpected_type_suffix))
     output = Base.remove_linenums!(quote 
-        local used_default::Bool
-        local type_is_valid = false
         if haskey($options, $(QuoteNode(name)))
             $name = MacroUtilities.unwrap_value($options[$(QuoteNode(name))])
-            used_default = false
+            if !($name isa Union{$(valid_types...)} )
+                $(should_throw ? :(throw($unexpected_type_error_from_options)) : :(return $unexpected_type_error_from_options))
+                $unexpected_type_error_from_options
+            else
+                $name
+            end
         else
             $default_expr
-            used_default = true
-        end
-        for T in $(Expr(:tuple, valid_types...))
-            if $name isa T 
-                type_is_valid = true 
-                break
+            if !($name isa Union{$(valid_types...)} ) 
+                $(should_throw ? :(throw($unexpected_type_error_from_default)) : :(return $unexpected_type_error_from_default))
+                $unexpected_type_error_from_default
+            else 
+                $name
             end
         end
-        !type_is_valid && $unexpected_type_expr 
-        $name
     end)
     pushfirst!(output.args, _sourceinfo)
     return output
@@ -83,7 +83,7 @@ equivalent to writing
 
 If `should_throw == true`, throws an `ArgumentError` if `options` does not contain key `\$name`.
 
-Otherwise, returns an `ArgumentError` if `options` does not contain key `\$name`.
+Otherwise, returns an `ArgumentError` from the current function if `options` does not contain key `\$name`.
 
 If `unpack_expr` is of the form 
 - `name::T`, then `options[\$name]` must be of type `T` or an `ArgumentError` will be *returned*
