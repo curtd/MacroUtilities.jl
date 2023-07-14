@@ -13,7 +13,7 @@ module MacroUtilities
     # Expression parsing types 
     export UnionExpr, TypedVar, TypedExpr, AssignExpr, NamedTupleArg, NamedTupleExpr
     
-    export BlockExpr, ExprWOptionalRhs, KVExpr, ExprWOptions, KeyWOptions, DestructuredAssigmentExpr
+    export BlockExpr, PairExpr, ExprWOptionalRhs, KVExpr, ExprWOptions, KeyWOptions, DestructuredAssigmentExpr
 
     export @arg_error, @return_if_exception, @unpack_option
     

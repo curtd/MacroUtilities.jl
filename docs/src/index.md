@@ -33,14 +33,17 @@ NamedTupleArg(f::NamedTupleArg)
 NamedTupleExpr
 NamedTupleExpr(names::Vector{Symbol})
 UnionExpr
-UnionExpr(f::UnionExpr)
 TypedVar
 TypedVar(d::TypedVar)
+TypedExpr
+TypedExpr(f::TypedExpr{E}) where {E}
 ```
 
 ### Composite Expression Types 
 ```@docs 
 BlockExpr
+PairExpr
+PairExpr(p::PairExpr)
 AssignExpr
 AssignExpr(f::AssignExpr)
 ExprWOptionalRhs
