@@ -6,6 +6,7 @@ version = "1.5.1"
 [deps]
 MLStyle = "d8e11817-5142-5d16-987a-aa16d5891078"
 OrderedCollections = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
+Tricks = "410a4b4d-49e4-4fbc-ab6d-cb71b17b3775"
 
 [compat]
 MLStyle = "0.4.17"

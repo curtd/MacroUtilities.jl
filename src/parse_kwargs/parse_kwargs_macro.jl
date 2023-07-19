@@ -8,14 +8,18 @@ function found_value!(parser::KVExprParser, key::Symbol, (@nospecialize value))
     return nothing
 end
 
-function parse_kvs!(parser::KVExprParser, exprs)
+function parse_kvs!(parser::KVExprParser, exprs; strict::Bool=false)
     for expr in exprs 
-        _kv = from_expr(KVExpr, expr; throw_error=true)
+        _kv = from_expr(KVExpr, expr; throw_error=strict)
+        isnothing(_kv) && continue
         key = _kv.lhs
         spec = get(parser.spec, key, nothing)
         if isnothing(spec) 
-            !parser.ignore_unknown_keys && throw(ArgumentError("Unexpected key `$(key)`, expected keys = ($(join(sort!(string.(collect(keys(parser.spec)))), ", ")))"))
-            return nothing 
+            if strict
+                !parser.ignore_unknown_keys && throw(ArgumentError("Unexpected key `$(key)`, expected keys = ($(join(sort!(string.(collect(keys(parser.spec)))), ", ")))"))
+                return nothing 
+            end
+            continue
         end
         value = _kv.rhs
         valueT = typeof(value)
@@ -48,6 +52,32 @@ function parse_kvs!(parser::KVExprParser, exprs)
         end
     end
     return nothing
+end
+
+function parse_kwargs_expr(args...; allow_overwrite::Bool=false, ignore_unknown_keys::Bool=false)
+    length(args) ≥ 2 || throw(ArgumentError("Must provide at least two arguments"))
+    all_args = Expr(:vect, args[1:end-1]...)
+
+    kwarg_spec_expr = args[end]
+    kwarg_spec_expr isa Expr || throw(ArgumentError("kwarg_spec must be an Expr"))
+
+    spec_exprs = KVSpecExpr[]
+    if Meta.isexpr(kwarg_spec_expr, :block)
+        for expr in kwarg_spec_expr.args 
+            expr isa LineNumberNode && continue
+            push!(spec_exprs, from_expr(KVSpecExpr, expr; throw_error=true))
+        end
+    else 
+        push!(spec_exprs, from_expr(KVSpecExpr, kwarg_spec_expr; throw_error=true))
+    end
+    output = Expr(:block, [:($(spec.key) = kv_parser.found_values[$(QuoteNode(spec.key))]) for spec in spec_exprs]...)
+    
+    return quote 
+        local kv_parser = MacroUtilities.KVExprParser( $(to_expr.(spec_exprs)...); allow_overwrite=$allow_overwrite, ignore_unknown_keys=$ignore_unknown_keys )
+        MacroUtilities.parse_kvs!(kv_parser, $all_args)
+        $(output)
+        nothing
+    end 
 end
 
 """
@@ -88,27 +118,5 @@ An alternative, more compact, form to the above expressions is
 
 """
 macro parse_kwargs(args...)
-    length(args) ≥ 2 || throw(ArgumentError("Must provide at least two arguments"))
-    all_args = Expr(:vect, args[1:end-1]...)
-
-    kwarg_spec_expr = args[end]
-    kwarg_spec_expr isa Expr || throw(ArgumentError("kwarg_spec must be an Expr"))
-
-    spec_exprs = KVSpecExpr[]
-    if Meta.isexpr(kwarg_spec_expr, :block)
-        for expr in kwarg_spec_expr.args 
-            expr isa LineNumberNode && continue
-            push!(spec_exprs, from_expr(KVSpecExpr, expr; throw_error=true))
-        end
-    else 
-        push!(spec_exprs, from_expr(KVSpecExpr, kwarg_spec_expr; throw_error=true))
-    end
-    output = Expr(:block, [:($(spec.key) = kv_parser.found_values[$(QuoteNode(spec.key))]) for spec in spec_exprs]...)
-    
-    return quote 
-        local kv_parser = MacroUtilities.KVExprParser( $(to_expr.(spec_exprs)...); allow_overwrite=false, ignore_unknown_keys=false )
-        MacroUtilities.parse_kvs!(kv_parser, $all_args)
-        $(output)
-        nothing
-    end |> esc
+    parse_kwargs_expr(args...) |> esc
 end

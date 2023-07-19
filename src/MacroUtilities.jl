@@ -1,6 +1,6 @@
 module MacroUtilities
 
-    using MLStyle, OrderedCollections
+    using MLStyle, OrderedCollections, Tricks
 
     # General utilities 
     export @assert_type
@@ -37,6 +37,8 @@ module MacroUtilities
 
     export @parse_kwargs
 
+    export @method_def_constant
+
     include("utils.jl")
 
     include("parsing/_parsing.jl")
@@ -44,4 +46,6 @@ module MacroUtilities
     include("transformations/_transformations.jl")
 
     include("parse_kwargs/_parse_kwargs.jl")
+
+    include("macro_util.jl")
 end
