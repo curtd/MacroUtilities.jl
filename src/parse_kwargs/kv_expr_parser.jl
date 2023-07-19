@@ -8,7 +8,6 @@ Base.:(==)(x::KVSpecExpr, y::KVSpecExpr) =  all(getfield(x,k) == getfield(y,k) f
 
 function parse_kv_spec_from_type_expr(expr)
     f = _from_expr(TypedVar, expr)
-    f isa Exception && return f 
     key = f.name 
     expected_types = Set()
     @switch f.type begin 

@@ -25,27 +25,36 @@ end
 Base.:(==)(x::T, y::T) where {T<:AbstractExpr} =  all(getfield(x,k) == getfield(y,k) for k in fieldnames(T))
 Base.copy(x::T) where {T<:AbstractExpr} = T(x)
 
+
+Base.@kwdef struct CurlyExpr{FirstArg, E} <: AbstractExpr 
+    args::Vector{E} = E[]
+end
+
+function _from_expr(::Type{CurlyExpr{FirstArg, E}}, expr) where {FirstArg, E}
+    @switch expr begin 
+        @case Expr(:curly, first_arg, args...) && if first_arg == FirstArg end 
+            output = E[]
+            for arg in args 
+                e = _from_expr(E, arg)
+                e isa Exception && return e
+                push!(output, e)
+            end
+            return CurlyExpr{FirstArg, E}(output)
+        @case _ 
+            return ArgumentError("Input expression `$expr` is not a valid CurlyExpr{$FirstArg} expression")
+    end
+end
+
+to_expr(f::CurlyExpr{FirstArg, E}) where {FirstArg, E} = Expr(:curly, FirstArg, f.args...)
+
 """
     UnionExpr(; args::Vector{Union{Symbol, Expr}})
 
 Matches an expression of the form `Union{T1, T2, ...}`
 """
-Base.@kwdef struct UnionExpr <: AbstractExpr 
-    args::Vector{Union{Symbol, Expr}}
-end
+const UnionExpr = CurlyExpr{:Union, Union{Symbol, Expr}}
 
-UnionExpr(f::UnionExpr; args::Vector{Union{Symbol, Expr}}=Union{Symbol, Expr}[ arg isa Expr ? copy(arg) : arg for arg in f.args]) = UnionExpr(args)
-
-function _from_expr(::Type{UnionExpr}, expr)
-    @switch expr begin 
-        @case Expr(:curly, :Union, args...)
-            return UnionExpr(convert(Vector{Union{Symbol, Expr}}, collect(args)))
-        @case _ 
-            return ArgumentError("Input expression `$expr` is not a valid UnionExpr expression")
-    end
-end
-
-to_expr(f::UnionExpr) = Expr(:curly, :Union, f.args...)
+const TypeExpr{E} = CurlyExpr{:Type, E}
 
 """
     NamedTupleArg(; key::Symbol, value=not_provided, is_splat::Bool=false, kw_head::Bool)

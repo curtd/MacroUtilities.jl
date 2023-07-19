@@ -8,6 +8,7 @@ CurrentModule = MacroUtilities
 ```@docs 
 @assert_type 
 @unpack_option
+@method_def_constant
 ```
 
 ## Keyword Arg Parsing  

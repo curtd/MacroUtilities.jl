@@ -28,6 +28,9 @@ function _from_expr(::Type{Symbol}, expr)
 end
 
 _from_expr(::Type{Expr}, expr::Expr) = expr 
+for T in (:Symbol, :Expr)
+    @eval _from_expr(::Type{Union{Symbol, Expr}}, expr::$T) = expr
+end
 
 _from_expr(::Type{Any}, expr) = expr 
 
