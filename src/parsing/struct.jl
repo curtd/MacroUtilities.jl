@@ -263,11 +263,15 @@ struct FieldNameEqual
 end
 (f::FieldNameEqual)(vi) = struct_field_name(vi) == f.ref_field_name
 
-function Base.findfirst(f, v::FieldView)
-    for (i, arg) in enumerate(v)
-        f(arg)::Bool && return i 
+for with_func in (false, true)
+    @eval begin 
+        function Base.findfirst($(with_func ? :(f::Function) : :f), v::FieldView)
+            for (i,arg) in enumerate(v)
+                f(arg)::Bool && return i 
+            end
+            return nothing
+        end
     end
-    return nothing
 end
 function Base.getindex(f::FieldView, key::Symbol)
     index = findfirst(FieldNameEqual(key), f)

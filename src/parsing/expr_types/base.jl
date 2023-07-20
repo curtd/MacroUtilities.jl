@@ -221,16 +221,20 @@ struct KeyEquals
 end
 (k::KeyEquals)(arg::NamedTupleArg) = arg.key == k.ref_key
 
-"""
-    Base.findfirst(f, ex::NamedTupleExpr) -> Union{Nothing, Int}
+for with_func in (false, true)
+    @eval begin 
+        """
+            Base.findfirst(f, ex::NamedTupleExpr) -> Union{Nothing, Int}
 
-Returns the first index `i` such that `f(::NamedTupleArg) -> Bool` returns `true`, or `nothing` if no such index exists. 
-"""
-function Base.findfirst(f, ex::NamedTupleExpr)
-    for (i,arg) in enumerate(ex.args)
-        f(arg) && return i 
+        Returns the first index `i` such that `f(::NamedTupleArg) -> Bool` returns `true`, or `nothing` if no such index exists. 
+        """
+        function Base.findfirst($(with_func ? :(f::Function) : :f), ex::NamedTupleExpr)
+            for (i,arg) in enumerate(ex.args)
+                f(arg) && return i 
+            end
+            return nothing
+        end
     end
-    return nothing
 end
 
 """
