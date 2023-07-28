@@ -15,6 +15,8 @@ module MacroUtilities
     
     export BlockExpr, PairExpr, ExprWOptionalRhs, KVExpr, ExprWOptions, KeyWOptions, DestructuredAssigmentExpr
 
+    export IfElseExpr
+
     export @arg_error, @return_if_exception, @unpack_option
     
     export NestedDotExpr

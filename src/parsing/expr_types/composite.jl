@@ -1,42 +1,4 @@
 """
-    BlockExpr(; args)
-
-Matches a `:block` expression
-"""
-struct BlockExpr <: AbstractExpr
-    args::Vector{Any}
-    function BlockExpr(args::Vector{Any})
-        return new(args)
-    end
-end
-
-BlockExpr(arg) = BlockExpr(Any[arg])
-
-function BlockExpr(arg1, arg2, args...) 
-    expr = BlockExpr(arg1)
-    push!(expr.args, arg2)
-    for arg in args 
-        push!(expr.args, arg)
-    end
-    return expr
-end
-
-function _from_expr(::Type{BlockExpr}, expr)
-    @switch expr begin 
-        @case Expr(:block, args...)
-            return BlockExpr(convert(Vector{Any},collect(args)))
-        @case _ 
-            return ArgumentError("Input expression `$expr` is not a block `Expr`")
-    end
-end
-to_expr(expr::BlockExpr) = Expr(:block, to_expr.(expr.args)...)
-
-Base.vcat(expr::AbstractExpr, args...) = BlockExpr(expr, args...)
-
-Base.push!(expr::BlockExpr, arg) = push!(expr.args, arg)
-
-
-"""
     AssignExpr{L,R}(; lhs::L, rhs::R, allow_kw)
 
 Matches a `lhs = rhs` assignment expression. 

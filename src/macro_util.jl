@@ -1,5 +1,6 @@
 inner_param(::Type{Val{S}}) where {S} = S 
 inner_param(::Type{MIME{S}}) where {S} = S 
+inner_param(@nospecialize x) = x
 
 get_constant_func((@nospecialize x)) = nothing
 constant_key_type((@nospecialize x)) = Any 
