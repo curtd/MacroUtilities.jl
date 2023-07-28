@@ -136,13 +136,7 @@
             @Test f.rhs == FuncCall(; funcname=:f, args=[FuncArg(:x)])
             @Test to_expr(f) == ex
         end
-        @testset "BlockExpr" begin
-            expr = BlockExpr(KVExpr(; lhs=:a, rhs=1))
-            @Test to_expr(expr) == Expr(:block, :(a = 1))
-            expr = [KVExpr(; lhs=:a, rhs=1); KVExpr(; lhs=:b, rhs=false)]
-            @Test expr isa BlockExpr
-            @Test to_expr(expr) == Expr(:block, :(a = 1), :(b = false))
-        end
+        
         @testset "ExprWOptions" begin 
             ex = :(key = (a=1, b=true))
             f = from_expr(ExprWOptions{Symbol}, ex)

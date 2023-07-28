@@ -42,7 +42,6 @@ TypedExpr(f::TypedExpr{E}) where {E}
 
 ### Composite Expression Types 
 ```@docs 
-BlockExpr
 PairExpr
 PairExpr(p::PairExpr)
 AssignExpr
@@ -55,6 +54,12 @@ KeyWOptions
 DestructuredAssigmentExpr{E}
 DestructuredAssigmentExpr{E}(f::DestructuredAssigmentExpr)
 ``` 
+
+### Block Expression Types 
+```@docs 
+BlockExpr
+IfElseExpr
+```
 
 ### Syntactic Sugar 
 ```@docs
