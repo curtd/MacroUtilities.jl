@@ -41,6 +41,9 @@ module MacroUtilities
 
     export @method_def_constant
 
+    # Transformations
+    export replace_symbols, ReplaceSymbols
+
     include("utils.jl")
 
     include("parsing/_parsing.jl")
