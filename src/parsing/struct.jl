@@ -391,3 +391,5 @@ function to_expr(f::GeneralizedStructDef)
     end
     return result
 end
+
+@inline StructDef(f::GeneralizedStructDef) = StructDef(; is_mutable=f.is_mutable, header=f.header, lnn=f.lnn, fields=[(TypedVar(struct_field_name(first(t)), struct_field_type(first(t))), last(t)) for t in getfield(f, :fields)], constructors= hasproperty(f, :constructors) ? f.constructors : Tuple{FuncDef, LineNumberNode}[])

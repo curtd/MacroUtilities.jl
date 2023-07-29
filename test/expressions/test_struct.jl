@@ -75,9 +75,22 @@ end
     @Test f.constructors == [(ref_constructor1, ex.args[2].args[3].args[7]), (ref_constructor2, ex.args[2].args[3].args[9])]
     @Test to_expr(f) == ex
 
+    f_plain = StructDef(f)
+    @Test f_plain.typename == :A 
+    @Test f_plain.fields[1] == (TypedVar(; name=:key1, type=:B), getfield(f, :fields)[1] |> last)
+    @Test f_plain.fields[2] == (TypedVar(; name=:key2, type=:(Vector{Any})), getfield(f, :fields)[2] |> last)
+    @Test f_plain.fields[3] == (TypedVar(; name=:key3, type=not_provided), getfield(f, :fields)[3] |> last)
+
+    @Test f_plain.is_mutable == f.is_mutable
+    @Test f_plain.header == f.header 
+    @Test f_plain.lnn == f.lnn
+    @Test f_plain.constructors == f.constructors
+    
     g = map_fields(t->ExprWOptions(t; rhs=NamedTupleExpr()), f)
     @Test g.fields[:key1].options |> isempty 
     @Test g.fields[:key2].options |> isempty 
     @Test g.fields[:key3].options |> isempty 
     @Test all(isequal(getproperty(f, k), getproperty(g, k)) for k in propertynames(f) if k != :fields)
+
+
 end

@@ -126,6 +126,8 @@ function to_expr(arg::FuncArg; kw_head::Symbol=:kw)
     end
 end
 
+FuncArg(t::TypedVar; value=not_provided, is_splat::Bool=false) = FuncArg(; name=t.name, type=t.type, value=value, is_splat=is_splat)
+
 """
     name_only(f::FuncArg; is_splat::Bool=f.is_splat) -> FuncArg
 
