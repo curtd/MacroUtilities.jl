@@ -44,9 +44,14 @@ module MacroUtilities
     # Transformations
     export replace_symbols, ReplaceSymbols
 
+    # Expr generation
+    export kwarg_constructor
+
     include("utils.jl")
 
     include("parsing/_parsing.jl")
+
+    include("generation/_generation.jl")
 
     include("transformations/_transformations.jl")
 
