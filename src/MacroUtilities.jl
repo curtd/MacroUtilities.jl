@@ -30,7 +30,7 @@ module MacroUtilities
     export map_fields
 
     # Macro parsing types
-    export MacroCall
+    export MacroCall, MacroDef
 
     export doc_macro, __doc__macro, assume_effects, assume_foldable
 
@@ -45,7 +45,7 @@ module MacroUtilities
     export replace_symbols, ReplaceSymbols
 
     # Expr generation
-    export kwarg_constructor
+    export kwarg_constructor, copy_constructor
 
     include("utils.jl")
 

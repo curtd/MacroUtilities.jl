@@ -164,6 +164,19 @@
             f[:b] = true 
             @Test to_expr(f) == :(key = (a=1, b=true))
         end
+        @testset "PairExpr" begin
+            ex = :(A => B)
+            f = from_expr(PairExpr{Symbol, Symbol}, ex)
+            @Test f.lhs == :A
+            @Test f.rhs == :B
+            @Test to_expr(f) == ex 
+
+            ex = :(f(A) => "f(A)")
+            f = from_expr(PairExpr{FuncCall, String}, ex)
+            @Test f.lhs == (from_expr(FuncCall, :(f(A))))
+            @Test f.rhs == "f(A)"
+            @Test to_expr(f) == ex 
+        end
     end
 
     @testset "Keyword arguments from Expr" begin 

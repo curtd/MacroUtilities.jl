@@ -10,7 +10,7 @@ Matches the header of a struct definition
 """
 Base.@kwdef struct StructDefHeader <: AbstractExpr 
     typename::Symbol 
-    parameter::Union{Symbol, Expr, NotProvided} = not_provided 
+    parameters::Vector{Any} = Any[]
     supertype::Union{Symbol, Expr, NotProvided} = not_provided
 end
 
@@ -21,22 +21,22 @@ function _from_expr(::Type{StructDefHeader}, expr)
         @case _ 
             (expr, not_provided)
     end
-    (typename, parameter) = @switch rest begin 
-        @case Expr(:curly, typename, parameter)
-            (typename, parameter)
+    (typename, parameters) = @switch rest begin 
+        @case Expr(:curly, typename, parameters...)
+            (typename, convert(Vector{Any}, parameters))
         @case _
-            (rest, not_provided)
+            (rest, Any[])
     end
     if !(typename isa Symbol)
         return ArgumentError("Typename `$typename` derived from input expression `$expr` is not a Symbol")
     end
-    return StructDefHeader(; typename, parameter, supertype)
+    return StructDefHeader(; typename, parameters, supertype)
 end
 
 function to_expr(h::StructDefHeader)
     expr = h.typename
-    if is_provided(h.parameter)
-        expr = Expr(:curly, h.typename, h.parameter)
+    if !isempty(h.parameters)
+        expr = Expr(:curly, h.typename, h.parameters...)
     end
     if is_provided(h.supertype)
         expr = Expr(:(<:), expr, h.supertype)
@@ -50,8 +50,8 @@ end
 Returns a new copy of `f`, with optional `typename`, `parameter`, or `supertype` overridden by the keyword arguments.
 
 """
-function StructDefHeader(f::StructDefHeader; typename::Symbol=f.typename, parameter::Union{Symbol, Expr, NotProvided}=( f.parameter isa Expr ? deepcopy(f.parameter) : f.parameter), supertype::Union{Symbol, Expr, NotProvided}=( f.supertype isa Expr ? deepcopy(f.supertype) : f.supertype))
-    return StructDefHeader(typename, parameter, supertype)
+function StructDefHeader(f::StructDefHeader; typename::Symbol=f.typename, parameters::Vector{Any}=copy(f.parameters), supertype::Union{Symbol, Expr, NotProvided}=( f.supertype isa Expr ? deepcopy(f.supertype) : f.supertype))
+    return StructDefHeader(typename, parameters, supertype)
 end
 
 
@@ -74,6 +74,42 @@ function copy_struct_data(::Type{C}, x) where {C}
     end
     return new_data
 end
+
+function free_params(expr)
+    @switch expr begin 
+        @case ::Symbol 
+            return Symbol[expr]
+        @case Expr(:curly, outer, inner_args...)
+            output = Symbol[]
+            for arg in inner_args
+                out_args = free_params(arg)
+                !isnothing(out_args) && append!(output, out_args)
+            end
+        @case Expr(:(<:), lhs, rhs) || Expr(:(>:), lhs, rhs)
+            return free_params(lhs)
+        @case _ 
+            return nothing 
+    end
+end
+
+function free_params(f::StructDefHeader)
+    outputs = Symbol[]
+    for arg in f.parameters
+        out_args = free_params(arg)
+        if !isnothing(out_args)
+            append!(outputs, out_args)
+        end
+    end
+    return outputs 
+end
+
+function typename_w_params(f::StructDefHeader)
+    _params = free_params(f)
+    isempty(_params) && return f.typename
+    return Expr(:curly, f.typename, _params...)
+end
+
+whereparams(f::StructDefHeader) = isempty(f.parameters) ? not_provided : f.parameters
 
 """
     StructDef(; is_mutable, header, lnn, fields, constructors)
@@ -99,10 +135,10 @@ function Base.show(io::IO, def::StructDef)
     print(io, "StructDef\n\n", to_expr(def))
 end
 
-Base.propertynames(::StructDef) = (:is_mutable, :header, :lnn, :fields, :constructors, :typename, :parameter, :supertype)
+Base.propertynames(::StructDef) = (:is_mutable, :header, :lnn, :fields, :constructors, :typename, :parameters, :supertype)
 
 function Base.getproperty(s::StructDef, name::Symbol)
-    if name in (:typename, :parameter, :supertype)
+    if name in (:typename, :parameters, :supertype)
         return Base.getfield(Base.getfield(s, :header), name)
     else
         return Base.getfield(s, name)
@@ -233,6 +269,10 @@ function to_expr(f::StructDef)
     return result
 end
 
+for func in (:free_params, :typename_w_params, :whereparams)
+    @eval $func(f::StructDef) = $func(f.header)
+end
+
 struct FieldView{F}
     fields::Vector{Tuple{F, MaybeProvided{LineNumberNode}}}
 end
@@ -321,10 +361,10 @@ function Base.show(io::IO, def::GeneralizedStructDef)
     print(io, "GeneralizedStructDef\n\n", to_expr(def))
 end
 
-Base.propertynames(f::GeneralizedStructDef) = (:is_mutable, :header, :lnn, :fields, :additional_exprs, :typename, :parameter, :supertype, propertynames(getfield(f, :additional_exprs))...)
+Base.propertynames(f::GeneralizedStructDef) = (:is_mutable, :header, :lnn, :fields, :additional_exprs, :typename, :parameters, :supertype, propertynames(getfield(f, :additional_exprs))...)
 
 function Base.getproperty(s::GeneralizedStructDef, name::Symbol)
-    if name in (:typename, :parameter, :supertype)
+    if name in (:typename, :parameters, :supertype)
         return Base.getfield(Base.getfield(s, :header), name)
     elseif name === :fields 
         return FieldView(Base.getfield(s, :fields))
@@ -393,3 +433,7 @@ function to_expr(f::GeneralizedStructDef)
 end
 
 @inline StructDef(f::GeneralizedStructDef) = StructDef(; is_mutable=f.is_mutable, header=f.header, lnn=f.lnn, fields=[(TypedVar(struct_field_name(first(t)), struct_field_type(first(t))), last(t)) for t in getfield(f, :fields)], constructors= hasproperty(f, :constructors) ? f.constructors : Tuple{FuncDef, LineNumberNode}[])
+
+
+struct_field_name(f::ExprWOptions{TypedVar}) = struct_field_name(f.lhs)
+struct_field_type(f::ExprWOptions{TypedVar}) = struct_field_type(f.lhs)

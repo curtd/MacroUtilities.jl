@@ -73,8 +73,8 @@ function parse_kwargs_expr(args...; allow_overwrite::Bool=false, ignore_unknown_
     output = Expr(:block, [:($(spec.key) = kv_parser.found_values[$(QuoteNode(spec.key))]) for spec in spec_exprs]...)
     
     return quote 
-        local kv_parser = MacroUtilities.KVExprParser( $(to_expr.(spec_exprs)...); allow_overwrite=$allow_overwrite, ignore_unknown_keys=$ignore_unknown_keys )
-        MacroUtilities.parse_kvs!(kv_parser, $all_args)
+        local kv_parser = $MacroUtilities.KVExprParser( $(to_expr.(spec_exprs)...); allow_overwrite=$allow_overwrite, ignore_unknown_keys=$ignore_unknown_keys )
+        $MacroUtilities.parse_kvs!(kv_parser, $all_args)
         $(output)
         nothing
     end 

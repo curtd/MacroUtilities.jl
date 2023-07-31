@@ -3,16 +3,17 @@
         struct A end 
     end
     f = from_expr(StructDef, ex)
-    @Test propertynames(f) == (:is_mutable, :header, :lnn, :fields, :constructors, :typename, :parameter, :supertype)
+    @Test propertynames(f) == (:is_mutable, :header, :lnn, :fields, :constructors, :typename, :parameters, :supertype)
     @Test f.typename == :A
-    @Test MacroUtilities.is_not_provided(f.supertype)
-    @Test MacroUtilities.is_not_provided(f.parameter)
+    @Test isempty(f.parameters)
+    @Test is_not_provided(f.supertype)
     @Test f.is_mutable == false 
     @Test isempty(f.fields)
     @Test isempty(f.constructors)
     @Test f.lnn == ex.args[1]
-
+    @Test MacroUtilities.free_params(f) |> isempty
     @Test to_expr(f) == ex
+
 
     ex = quote 
         mutable struct A{B<:T} <: C{T}
@@ -26,7 +27,7 @@
     f = from_expr(StructDef, ex)
     @Test f.typename == :A
     @Test f.supertype == :(C{T})
-    @Test f.parameter == :(B<:T)
+    @Test f.parameters == [:(B<:T)]
     @Test f.is_mutable == true 
     @Test f.fields == [(TypedVar(; name=:key1, type=:B), ex.args[2].args[3].args[1]), (TypedVar(; name=:key2, type=:(Vector{Any})), ex.args[2].args[3].args[3]), (TypedVar(; name=:key3), ex.args[2].args[3].args[5])]
 
@@ -36,7 +37,20 @@
     @Test f.constructors == [(ref_constructor1, ex.args[2].args[3].args[7]), (ref_constructor2, ex.args[2].args[3].args[9])]
 
     @Test to_expr(f) == ex
-    
+
+    @Test MacroUtilities.free_params(f) == [:B]
+
+    ex = quote 
+        struct A{B<:T, S, F<:S} <: C{T}
+            key1::B
+            key2::Vector{S}
+            key3::F
+        end 
+    end
+    f = from_expr(StructDef, ex)
+    @Test to_expr(f) == ex
+    @Test Set(MacroUtilities.free_params(f)) == Set([:B, :S, :F])
+
 end
 @testset "Generalized Struct parsing" begin 
     A = ExprWOptions{TypedVar}
