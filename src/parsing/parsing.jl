@@ -33,6 +33,7 @@ for T in (:Symbol, :Expr)
 end
 
 _from_expr(::Type{Any}, expr) = expr 
+_from_expr(::Type{T}, expr::S) where {T, S<:T} = expr
 
 """
     from_expr(::Type{T}, expr; throw_error::Bool=false, kwargs...)

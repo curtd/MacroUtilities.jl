@@ -102,8 +102,10 @@ map_fields(f, def::StructDef)
 map_fields(f, def::GeneralizedStructDef{A,B,C}) where {A,B,C}
 ```
 
-### Expression Generation
+## Expression Generation
 ```@docs 
 kwarg_constructor(typename, fields::Vector{TypedVar}, default_vals)
 kwarg_constructor(f::StructDef, default_vals)
+copy_constructor(typename, fields::Vector{TypedVar})
+copy_constructor(f::StructDef)
 ```

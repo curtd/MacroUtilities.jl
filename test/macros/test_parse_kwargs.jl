@@ -19,6 +19,24 @@ macro ex_macro2(args...)
     end |> esc
 end
 
+module TestParseKwargsOuter 
+    using MacroUtilities
+
+    module TestParseKwargsInner 
+        import ..MacroUtilities
+        import ..@parse_kwargs
+
+        macro a(args...)
+            @parse_kwargs args... begin 
+                key1::String
+            end
+            return quote 
+                a = $key1
+            end |> esc
+        end
+    end
+end
+
 @testset "@parse_kwargs" begin 
     @testset "KVSpecExpr" begin 
         @test_cases begin 
@@ -73,4 +91,9 @@ end
         @test key1 == 1
         @test key2 == [:a,:b,:c]
     end
+    let 
+        TestParseKwargsOuter.TestParseKwargsInner.@a key1="abc"
+        @test a == "abc"    
+    end
+
 end

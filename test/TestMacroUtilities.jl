@@ -15,9 +15,6 @@ module TestMacroUtilities
         end
     end
 
-    MacroUtilities.struct_field_name(f::ExprWOptions{TypedVar}) = MacroUtilities.struct_field_name(f.lhs)
-    MacroUtilities.struct_field_type(f::ExprWOptions{TypedVar}) = MacroUtilities.struct_field_type(f.lhs)
-
     include("expressions/_test_expressions.jl")
     include("macros/_test_macros.jl")   
        

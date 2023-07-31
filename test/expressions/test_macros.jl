@@ -26,4 +26,16 @@ end
         @Test result.args == Any[expr]
         @Test to_expr(result) == Expr(:macrocall, Symbol("@a"), nothing, :(key1 = false))
     end
+    @testset "MacroDef" begin 
+        ex = :(macro a(args...)
+            return args[1] |> esc
+        end)
+        f = from_expr(MacroDef, ex)
+        @Test to_expr(f) == ex
+
+        ex = :(macro a(args...) args
+        end)
+        f = from_expr(MacroDef, ex)
+        @Test to_expr(f) == ex
+    end
 end
