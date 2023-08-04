@@ -45,7 +45,24 @@ function _from_expr(::Type{CurlyExpr{FirstArg, E}}, expr) where {FirstArg, E}
     end
 end
 
+function _from_expr(::Type{CurlyExpr}, expr)
+    @switch expr begin 
+        @case Expr(:curly, first_arg, args...)
+            output = convert(Vector{Any}, collect(args))
+            if first_arg isa Symbol 
+                FirstArg = first_arg 
+            else
+                FirstArg = Expr
+                pushfirst!(output, first_arg)
+            end
+            return CurlyExpr{FirstArg, Any}(output)
+        @case _ 
+            return ArgumentError("Input expression `$expr` is not a valid CurlyExpr expression")
+    end
+end
+
 to_expr(f::CurlyExpr{FirstArg, E}) where {FirstArg, E} = Expr(:curly, FirstArg, f.args...)
+to_expr(f::CurlyExpr{Expr, E}) where {E} = Expr(:curly, f.args...)
 
 """
     UnionExpr(; args::Vector{Union{Symbol, Expr}})
