@@ -1,11 +1,12 @@
 macro ex_macro(args...)
-    @parse_kwargs args... begin 
+    rest = @parse_kwargs args... begin 
         key1 = (expected_type = Int)
         key2 = (expected_types = (Bool, Symbol, Vector{Symbol}), default = false)
     end
     return quote 
         key1 = $key1 
         key2 = $key2
+        rest = $(Expr(:tuple, QuoteNode.(rest)...))
     end |> esc
 end
 macro ex_macro2(args...)
@@ -75,11 +76,19 @@ end
         @ex_macro key1=0
         @test key1 == 0 
         @test key2 == false
+        @test isempty(rest)
+    end
+    let 
+        @ex_macro key1=1 a=1 f(x)
+        @test key1 == 1 
+        @test key2 == false
+        @test rest == (:(a=1), :(f(x)))
     end
     let 
         @ex_macro key1=1 key2=[a,b,c]
         @test key1 == 1
         @test key2 == [:a,:b,:c]
+        @test isempty(rest)
     end
     let 
         @ex_macro2 key1=0
