@@ -69,10 +69,10 @@ If `normalize_kwargs = true`, trailing equality expressions (e.g., `f(a, b, c=1)
 """
 function from_expr(::Type{T}, expr; throw_error::Bool=false, kwargs...) where {T}
     result = _from_expr(T, expr; kwargs...)
-    if (T <: Vector && result isa Vector && eltype(result) <: eltype(T)) || result isa T || (T isa UnionAll ) || (!isempty(T.parameters) && result isa T.name.wrapper)
-        return result 
-    elseif result isa Exception
+    if result isa Exception 
         throw_error && throw(result)
+    elseif (T <: Vector && result isa Vector && eltype(result) <: eltype(T)) || result isa T || (T isa UnionAll ) || (!isempty(T.parameters) && result isa T.name.wrapper)
+        return result 
     end
     return nothing
 end

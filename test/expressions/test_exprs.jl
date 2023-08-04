@@ -56,6 +56,18 @@
         end
         @Test from_expr(UnionExpr, :(f(x))) |> isnothing
     end
+    @testset "CurlyExpr" begin 
+        @test_cases begin 
+            input               |   output 
+            :(Union{A,B})       | MacroUtilities.CurlyExpr{:Union, Any}(Any[:A, :B])
+            :(Union{})          | MacroUtilities.CurlyExpr{:Union, Any}(Any[])
+            :(Union{A, F(B)})   | MacroUtilities.CurlyExpr{:Union, Any}(Any[:A, :(F(B))])
+            :(F{A, G(B)})       | MacroUtilities.CurlyExpr{:F, Any}(Any[:A, :(G(B))])
+            :(H.F{A, G(B)})     | MacroUtilities.CurlyExpr{Expr, Any}(Any[:(H.F), :A, :(G(B))])
+            @test from_expr(MacroUtilities.CurlyExpr, input) == output
+            @test to_expr(output) == input
+        end
+    end
 
     @testset "NamedTupleExpr" begin 
         ex = :((a=1, b=f(x)))
