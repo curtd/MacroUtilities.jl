@@ -31,7 +31,7 @@ end
 Returns a new copy of `f`, with optional `name`, `type`, `value`, or `is_splat` overridden by the keyword arguments. 
 
 """
-function FuncArg(f::FuncArg; name::Union{NotProvided, Symbol}=f.name, type::Union{NotProvided, Symbol, Expr}=( f.type isa Expr ? deepcopy(f.type) : f.type), value=deepcopy(f.value), is_splat::Bool=f.is_splat)
+function FuncArg(f::FuncArg; name::Union{NotProvided, Symbol}=f.name, type::Union{NotProvided, Symbol, Expr}=(copy_value(f.type)), value=copy_value(f.value), is_splat::Bool=f.is_splat)
     return FuncArg(name, type, value, is_splat)
 end
 
@@ -164,7 +164,7 @@ end
 
 Returns a new copy of `f`, with optional `funcname`, `args`, or `kwargs` overridden by the keyword arguments. 
 """
-function FuncCall(f::FuncCall; funcname::Union{NotProvided, Symbol, Expr}=(f.funcname isa Expr ? deepcopy(f.funcname) : f.funcname), args::Vector{FuncArg} = [copy(arg) for arg in f.args], kwargs::OrderedDict{Symbol, FuncArg} = OrderedDict{Symbol, FuncArg}( k => copy(v) for (k,v) in pairs(f.kwargs)))
+function FuncCall(f::FuncCall; funcname::Union{NotProvided, Symbol, Expr}=copy_value(f.funcname), args::Vector{FuncArg} = [copy_value(arg) for arg in f.args], kwargs::OrderedDict{Symbol, FuncArg} = OrderedDict{Symbol, FuncArg}( k => copy_value(v) for (k,v) in pairs(f.kwargs)))
     return FuncCall(funcname, args, kwargs)
 end
 
@@ -278,7 +278,7 @@ end
 
 Returns a new copy of `f`, with optional `header`, `head`, `whereparams`, `return_type`, `body`, `line`, or `doc` values overridden by the keyword arguments. 
 """
-function FuncDef(f::FuncDef; header::FuncCall=FuncCall(f.header), head::Symbol=f.head, whereparams=deepcopy(f.whereparams), return_type=deepcopy(f.return_type), body=deepcopy(f.body), line::Union{LineNumberNode, NotProvided}=f.line, doc::Union{String, NotProvided}=f.doc)
+function FuncDef(f::FuncDef; header::FuncCall=FuncCall(f.header), head::Symbol=f.head, whereparams=copy_value(f.whereparams), return_type=copy_value(f.return_type), body=copy_value(f.body), line::Union{LineNumberNode, NotProvided}=f.line, doc::Union{String, NotProvided}=f.doc)
     return FuncDef(header, head, whereparams, return_type, body, line, doc)
 end
 

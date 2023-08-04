@@ -1,11 +1,11 @@
 """
-    StructDefHeader(; typename, parameter, supertype)
+    StructDefHeader(; typename, parameters, supertype)
 
 Matches the header of a struct definition
 
 # Fields 
 - `typename::Symbol`
-- `parameter::Union{Symbol, Expr, NotProvided} = not_provided`
+- `parameters::Vector{Any} = Any[]`
 - `supertype::Union{Symbol, Expr, NotProvided} = not_provided`
 """
 Base.@kwdef struct StructDefHeader <: AbstractExpr 
@@ -50,7 +50,7 @@ end
 Returns a new copy of `f`, with optional `typename`, `parameter`, or `supertype` overridden by the keyword arguments.
 
 """
-function StructDefHeader(f::StructDefHeader; typename::Symbol=f.typename, parameters::Vector{Any}=copy(f.parameters), supertype::Union{Symbol, Expr, NotProvided}=( f.supertype isa Expr ? deepcopy(f.supertype) : f.supertype))
+function StructDefHeader(f::StructDefHeader; typename::Symbol=f.typename, parameters::Vector{<:Any}=[copy_value(p) for p in f.parameters], supertype::Union{Symbol, Expr, NotProvided}= copy_value(f.supertype))
     return StructDefHeader(typename, parameters, supertype)
 end
 
@@ -69,7 +69,7 @@ function copy_struct_data(::Type{C}, x) where {C}
         new_vals = new_data[key]
         for val in vals 
             expr, lnn = val
-            push!(new_vals, (copy(expr), lnn::MaybeProvided{LineNumberNode}))
+            push!(new_vals, (copy_value(expr), lnn::MaybeProvided{LineNumberNode}))
         end
     end
     return new_data
@@ -151,7 +151,7 @@ end
 Returns a new copy of `f`, with optional `is_mutable`, `header`, `fields`, or `constructors` overridden by the keyword arguments.
 
 """
-function StructDef(f::StructDef; is_mutable::Bool=f.is_mutable, header::StructDefHeader=StructDefHeader(f.header), lnn::Union{LineNumberNode, NotProvided}=f.lnn, fields::Vector{Tuple{TypedVar, LineNumberNode}} = [(copy(_field), lnn) for (_field, lnn) in f.fields], constructors::Vector{Tuple{FuncDef, LineNumberNode}} = [(copy(_def), lnn) for (_def, lnn) in f.constructors])
+function StructDef(f::StructDef; is_mutable::Bool=f.is_mutable, header::StructDefHeader=StructDefHeader(f.header), lnn::Union{LineNumberNode, NotProvided}=f.lnn, fields::Vector{Tuple{TypedVar, LineNumberNode}} = [(copy_value(_field), lnn) for (_field, lnn) in f.fields], constructors::Vector{Tuple{FuncDef, LineNumberNode}} = [(copy_value(_def), lnn) for (_def, lnn) in f.constructors])
     return StructDef(is_mutable, header, lnn, fields, constructors)
 end
 
@@ -381,7 +381,7 @@ end
 Returns a new copy of `f`, with optional `is_mutable`, `header`, `fields`, or `constructors` overridden by the keyword arguments.
 
 """
-function GeneralizedStructDef(f::GeneralizedStructDef{A,B,C}; is_mutable::Bool=f.is_mutable, header::StructDefHeader=StructDefHeader(f.header), lnn::MaybeProvided{LineNumberNode}=f.lnn, fields::Vector{Tuple{A, MaybeProvided{LineNumberNode}}} = [(copy(_field), lnn) for (_field, lnn) in getfield(f, :fields)], additional_exprs::C=copy_struct_data(B, f.additional_exprs)) where {A, B, C}
+function GeneralizedStructDef(f::GeneralizedStructDef{A,B,C}; is_mutable::Bool=f.is_mutable, header::StructDefHeader=StructDefHeader(f.header), lnn::MaybeProvided{LineNumberNode}=f.lnn, fields::Vector{Tuple{A, MaybeProvided{LineNumberNode}}} = [(copy_value(_field), lnn) for (_field, lnn) in getfield(f, :fields)], additional_exprs::C=copy_struct_data(B, f.additional_exprs)) where {A, B, C}
     return GeneralizedStructDef{A,B,C}(is_mutable, header, lnn, fields, additional_exprs)
 end
 

@@ -9,6 +9,8 @@ const not_provided = NotProvided()
 
 Base.show(io::IO, ::NotProvided) = print(io, "not_provided")
 
+copy_value(x::NotProvided) = x
+
 """
     is_not_provided(x) -> Bool 
 

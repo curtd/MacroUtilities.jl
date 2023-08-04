@@ -50,7 +50,7 @@ A `MacroCall` corresponding to `Core.@__doc__`
 const __doc__macro = MacroCall(; name=GlobalRef(Core, Symbol("@__doc__")))
 
 function (m::MacroCall)(expr, exprs...)
-    new_args = copy(m.args)
+    new_args = copy_value(m.args)
     add_expr = true
     line = m.line
     if m.name == doc_macro.name

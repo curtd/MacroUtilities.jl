@@ -96,7 +96,7 @@ NamedTupleArg(key::Symbol; kw_head::Bool) = NamedTupleArg(; key, kw_head)
 
 Returns a new copy of `f`, with optional `name`, `type`, `value`, or `is_splat` overridden by the keyword arguments. 
 """
-function NamedTupleArg(f::NamedTupleArg; key::Symbol=f.key, value=deepcopy(f.value), is_splat::Bool=f.is_splat, kw_head::Bool=f.kw_head)
+function NamedTupleArg(f::NamedTupleArg; key::Symbol=f.key, value=copy_value(f.value), is_splat::Bool=f.is_splat, kw_head::Bool=f.kw_head)
     return NamedTupleArg(key, value, is_splat, kw_head)
 end
 
@@ -141,7 +141,7 @@ Base.@kwdef struct NamedTupleExpr <: AbstractExpr
     args::Vector{NamedTupleArg} = NamedTupleArg[]
 end
 
-function NamedTupleExpr(f::NamedTupleExpr; args::Vector{NamedTupleArg}=[copy(arg) for arg in f.args])
+function NamedTupleExpr(f::NamedTupleExpr; args::Vector{NamedTupleArg}=[copy_value(arg) for arg in f.args])
     return NamedTupleExpr(args)
 end
 
