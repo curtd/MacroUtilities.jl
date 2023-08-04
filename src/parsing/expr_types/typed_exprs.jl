@@ -17,7 +17,7 @@ end
 
 Returns a new copy of `f`, with optional `name` or `type` overridden by the keyword arguments.
 """
-function TypedVar(f::TypedVar; name::Symbol=f.name, type::Union{Symbol, Expr, NotProvided}=( f.type isa Expr ? deepcopy(f.type) : f.type))
+function TypedVar(f::TypedVar; name::Symbol=f.name, type::Union{Symbol, Expr, NotProvided}=copy_value(f.type))
     return TypedVar(name, type)
 end
 
@@ -61,7 +61,7 @@ end
 
 Returns a new copy of `f`, with optional `expr` or `type` overridden by the keyword arguments.
 """
-function TypedExpr(f::TypedExpr{E}; expr::E=copy(f.expr), type::Union{Symbol, Expr, NotProvided}=( f.type isa Expr ? copy(f.type) : f.type)) where {E}
+function TypedExpr(f::TypedExpr{E}; expr::E=copy_value(f.expr), type::Union{Symbol, Expr, NotProvided}=copy_value(f.type)) where {E}
     return TypedExpr(expr, type)
 end
 

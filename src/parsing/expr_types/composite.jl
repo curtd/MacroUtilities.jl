@@ -41,7 +41,7 @@ end
 
 Returns a new copy of `f`, with optional `lhs`, `rhs`, and `allow_kw` overriden by the keyword arguments.
 """
-function AssignExpr(f::AssignExpr{L, R}; lhs::L=copy(f.lhs), rhs::R=copy(f.rhs), allow_kw::Bool=f.allow_kw) where {L, R}
+function AssignExpr(f::AssignExpr{L, R}; lhs::L=copy_value(f.lhs), rhs::R=copy_value(f.rhs), allow_kw::Bool=f.allow_kw) where {L, R}
     return AssignExpr(lhs, rhs, allow_kw)
 end
 
@@ -81,7 +81,7 @@ end
 
 Returns a new copy of `f`, with optional `lhs` and `rhs` overriden by the keyword arguments.
 """
-function PairExpr(f::PairExpr{L, R}; lhs::L=copy(f.lhs), rhs::R=copy(f.rhs)) where {L, R}
+function PairExpr(f::PairExpr{L, R}; lhs::L=copy_value(f.lhs), rhs::R=copy_value(f.rhs)) where {L, R}
     return PairExpr(lhs, rhs)
 end
 
@@ -167,7 +167,7 @@ ExprWOptions(lhs, options::NamedTupleExpr; allow_kw::Bool=false) = ExprWOptions(
 
 Returns a new copy of `f`, with optional `lhs`, `rhs`, and `allow_kw` overridden by the keyword arguments.
 """
-function ExprWOptions(f::ExprWOptions{E}; lhs::E=copy(f.lhs), rhs::NamedTupleExpr=copy(r.rhs), allow_kw::Bool=f.inner_expr.allow_kw) where {E}
+function ExprWOptions(f::ExprWOptions{E}; lhs::E=copy_value(f.lhs), rhs::NamedTupleExpr=copy_value(r.rhs), allow_kw::Bool=f.inner_expr.allow_kw) where {E}
     return ExprWOptions(lhs, rhs; allow_kw)
 end
 
@@ -236,7 +236,7 @@ end
 
 Returns a new copy of `f`, with optional `lhs_names`, `destructure_type`, and `rhs` overriden by the keyword arguments.
 """
-function DestructuredAssigmentExpr(f::DestructuredAssigmentExpr{E}; lhs_names::Vector{Symbol}=copy(f.lhs_names), destructure_type::Symbol=f.destructure_type, rhs::E=copy(f.rhs)) where {E}
+function DestructuredAssigmentExpr(f::DestructuredAssigmentExpr{E}; lhs_names::Vector{Symbol}=copy_value(f.lhs_names), destructure_type::Symbol=f.destructure_type, rhs::E=copy_value(f.rhs)) where {E}
     return DestructuredAssigmentExpr(lhs_names, destructure_type, rhs) 
 end
 

@@ -1,3 +1,7 @@
+module TestModule 
+    function f end 
+end
+
 @testset "Function parsing" begin 
     @testset "FuncArg" begin 
         @test_cases begin 
@@ -208,5 +212,10 @@
         @Test isequal(f.doc, MacroUtilities.not_provided)
 
         @Test to_expr(f) == ex 
+
+        ex = :($TestModule.f(x) = nothing)
+        f = from_expr(FuncDef, ex)
+        g = FuncDef(f; return_type=:Int)
+        @Test to_expr(g) == Expr(:(=), :($(ex.args[1])::Int), ex.args[2])
     end
 end

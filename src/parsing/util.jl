@@ -27,3 +27,8 @@ macro arg_error(expr, args...)
         ArgumentError(join([$(arg_error_args...)], ", ")*" - "*$final_arg)
     end |> esc
 end
+
+copy_value(x::Symbol) = x 
+copy_value(x::String) = x 
+copy_value(x::AbstractVector{T}) where {T} = T[copy_value(xi) for xi in x]
+copy_value(x) = Base.copy(x)
