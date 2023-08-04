@@ -9,9 +9,13 @@ function found_value!(parser::KVExprParser, key::Symbol, (@nospecialize value))
 end
 
 function parse_kvs!(parser::KVExprParser, exprs; strict::Bool=false)
+    non_kw_exprs = Any[]
     for expr in exprs 
         _kv = from_expr(KVExpr, expr; throw_error=strict)
-        isnothing(_kv) && continue
+        if isnothing(_kv) 
+            push!(non_kw_exprs, expr)
+            continue
+        end
         key = _kv.lhs
         spec = get(parser.spec, key, nothing)
         if isnothing(spec) 
@@ -19,6 +23,7 @@ function parse_kvs!(parser::KVExprParser, exprs; strict::Bool=false)
                 !parser.ignore_unknown_keys && throw(ArgumentError("Unexpected key `$(key)`, expected keys = ($(join(sort!(string.(collect(keys(parser.spec)))), ", ")))"))
                 return nothing 
             end
+            push!(non_kw_exprs, expr)
             continue
         end
         value = _kv.rhs
@@ -51,7 +56,7 @@ function parse_kvs!(parser::KVExprParser, exprs; strict::Bool=false)
             found_value!(parser, key, spec.default_value)
         end
     end
-    return nothing
+    return non_kw_exprs
 end
 
 function parse_kwargs_expr(args...; allow_overwrite::Bool=false, ignore_unknown_keys::Bool=false)
@@ -74,16 +79,16 @@ function parse_kwargs_expr(args...; allow_overwrite::Bool=false, ignore_unknown_
     
     return quote 
         local kv_parser = $MacroUtilities.KVExprParser( $(to_expr.(spec_exprs)...); allow_overwrite=$allow_overwrite, ignore_unknown_keys=$ignore_unknown_keys )
-        $MacroUtilities.parse_kvs!(kv_parser, $all_args)
+        local non_parsed_exprs = $MacroUtilities.parse_kvs!(kv_parser, $all_args)
         $(output)
-        nothing
+        non_parsed_exprs
     end 
 end
 
 """
     @parse_kwargs [args] kwarg_spec
 
-Parses the set of keyword expressions given in `args` according to a series of `kwarg_spec` specification and sets the corresponding keys in the calling scope. 
+Parses the set of keyword expressions given in `args` according to a series of `kwarg_spec` specification and sets the corresponding keys in the calling scope. Returns a `Vector` of the expressions that were not parsed as keyword arguments.
 
 `kwarg_spec` must be a block `Expr`, with each line consisting of an expression of the form 
 
