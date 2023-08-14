@@ -96,6 +96,12 @@ end
         @test key2 == false
     end
     let 
+        key2 = 1
+        @ex_macro2 key1=0 key2
+        @test key1 == 0 
+        @test key2 == 1
+    end
+    let 
         @ex_macro2 key1=1 key2=[a,b,c]
         @test key1 == 1
         @test key2 == [:a,:b,:c]

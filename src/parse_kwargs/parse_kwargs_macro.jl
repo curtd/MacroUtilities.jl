@@ -32,6 +32,8 @@ function parse_kvs!(parser::KVExprParser, exprs; strict::Bool=false)
 
         if valueT in spec.expected_types
             set_value = value
+        elseif valueT === NotProvided
+            set_value = key
         else
             if (_eltypes = eltypes(spec); !isempty(_eltypes))
                 for data in _eltypes 
