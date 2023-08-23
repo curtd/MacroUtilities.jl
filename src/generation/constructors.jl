@@ -24,9 +24,24 @@ end
 """
 kwarg_constructor(f::StructDef, default_vals; kwargs...) = kwarg_constructor(f.typename, first.(f.fields), default_vals; whereparams=whereparams(f), kwargs...)
 
+"""
+    default_copy_expr(name, t) -> Expr
+
+Copies the value from the input expression `t` if `typeof(t)` is not a `String`, `Symbol`, `Missing`, or `Nothing`
+"""
+function default_copy_expr(name, t)
+    return Base.remove_linenums!(quote 
+        local $name=$t
+        if typeof($name) in (String, Symbol, Missing, Nothing)
+            $name
+        else
+            Base.copy($name)
+        end
+    end)
+end
 
 """
-    copy_constructor(typename, fields::Vector{TypedVar}; [input_var::Symbol], [lnn::Union{LineNumberNode, Nothing}], [whereparams=not_provided])
+    copy_constructor(typename, fields::Vector{TypedVar}; [input_var::Symbol], [lnn::Union{LineNumberNode, Nothing}], [whereparams=not_provided], [copy_expr=default_copy_expr])
 
 Returns a `FuncDef` copy constructor for `typename` with `fields`, i.e., a function of the form 
 
@@ -34,18 +49,16 @@ Returns a `FuncDef` copy constructor for `typename` with `fields`, i.e., a funct
     \$typename(\$input_var::\$typename; field1::fieldtype1=Base.copy(getfield(\$input_var, :field1)), ...) = \$typename(field1, ...)
 ```
 Supports an optionally provided `lnn` and `whereparams`
+
+`copy_expr(name, input_value)` must return an `Expr` that determines how the field `name` will be copied from `input_value` 
 """
-function copy_constructor(typename, fields::Vector{TypedVar}; input_var::Symbol=gensym("x"), lnn::Union{LineNumberNode, Nothing}=nothing, whereparams=not_provided, typename_w_params=typename)
+function copy_constructor(typename, fields::Vector{TypedVar}; input_var::Symbol=gensym("x"), lnn::Union{LineNumberNode, Nothing}=nothing, whereparams=not_provided, typename_w_params=typename, copy_expr=default_copy_expr)
     isempty(fields) && return nothing 
 
     header = FuncCall(; funcname=typename, args=[FuncArg(; name=input_var, type=typename_w_params)])
     body = FuncCall(; funcname=typename)
     for field in fields 
-        value = :(Base.getfield($input_var, $(QuoteNode(field.name))))
-        if !(field.type === :Symbol)
-            value = :(Base.copy($value))
-        end
-        header.kwargs[field.name] = FuncArg(; name=field.name, type=field.type, value=value)
+        header.kwargs[field.name] = FuncArg(; name=field.name, type=field.type, value=copy_expr(field.name, :(Base.getfield($input_var, $(QuoteNode(field.name))))))
         push!(body.args, FuncArg(; name=field.name))
     end
     body = Expr(:block, to_expr(body))

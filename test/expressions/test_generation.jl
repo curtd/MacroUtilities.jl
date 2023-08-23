@@ -35,9 +35,24 @@
         f = from_expr(StructDef, ex)
 
         c = copy_constructor(f; input_var=:t)
-        c_expr = to_expr(c)
-        @Test c_expr.args[1] == :(A(t::A; key1::String=Base.copy(Base.getfield(t, :key1)), key2::Int=Base.copy(Base.getfield(t, :key2)), key3::Symbol=Base.getfield(t, :key3)))
-        @Test c_expr.args[2] == Expr(:block, :(A(key1, key2, key3)))
+        @Test c.header.kwargs[:key1].name == :key1
+        @Test c.header.kwargs[:key1].type == :String
+        @Test c.header.kwargs[:key2].name == :key2
+        @Test c.header.kwargs[:key2].type == :Int
+        @Test c.header.kwargs[:key3].name == :key3
+        @Test c.header.kwargs[:key3].type == :Symbol
+        for key in (:key1, :key2, :key3)
+            @Test c.header.kwargs[key].value == Base.remove_linenums!(quote
+                local $key = Base.getfield(t, $(QuoteNode(key)))
+                if typeof($key) in (String, Symbol, Missing, Nothing)
+                    $key
+                else
+                    Base.copy($key)
+                end
+            end)
+        end
+      
+        @Test c.body == Base.remove_linenums!(quote A(key1, key2, key3) end)
 
         ex = :(struct A{B, C<:D, F}
             key1::B 
@@ -47,10 +62,23 @@
         f = from_expr(StructDef, ex)
 
         c = copy_constructor(f; input_var=:t)
-        c_expr = to_expr(c)
+        @Test c.header.kwargs[:key1].name == :key1
+        @Test c.header.kwargs[:key1].type == :B
+        @Test c.header.kwargs[:key2].name == :key2
+        @Test c.header.kwargs[:key2].type == :C
+        @Test c.header.kwargs[:key3].name == :key3
+        @Test c.header.kwargs[:key3].type == :F
+        for key in (:key1, :key2, :key3)
+            @Test c.header.kwargs[key].value == Base.remove_linenums!(quote
+                local $key = Base.getfield(t, $(QuoteNode(key)))
+                if typeof($key) in (String, Symbol, Missing, Nothing)
+                    $key
+                else
+                    Base.copy($key)
+                end
+            end)
+        end
+        @Test c.body == Base.remove_linenums!(quote A(key1, key2, key3) end)
         
-        @Test c_expr.args[1] == :(A(t::A{B,C,F}; key1::B=Base.copy(Base.getfield(t, :key1)), key2::C=Base.copy(Base.getfield(t, :key2)), key3::F=Base.copy(Base.getfield(t, :key3))) where {B, C <: D, F})
-        @Test c_expr.args[2] == Expr(:block, :(A(key1, key2, key3)))
-
     end
 end
