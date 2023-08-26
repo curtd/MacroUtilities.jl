@@ -1,6 +1,6 @@
 module MacroUtilities
 
-    using MLStyle, OrderedCollections, Tricks
+    using MLStyle, OrderedCollections, PrecompileTools, Tricks
 
     # General utilities 
     export @assert_type
@@ -30,7 +30,7 @@ module MacroUtilities
     export map_fields
 
     # Macro parsing types
-    export MacroCall, MacroDef
+    export MacroCall, MacroDef, DocExpr
 
     export doc_macro, __doc__macro, assume_effects, assume_foldable
 
@@ -58,4 +58,6 @@ module MacroUtilities
     include("parse_kwargs/_parse_kwargs.jl")
 
     include("macro_util.jl")
+    
+    include("precompile.jl")
 end

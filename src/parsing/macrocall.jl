@@ -35,12 +35,14 @@ function to_expr(m::MacroCall)
     return Expr(:macrocall, m.name, is_not_provided(m.line) ? nothing : m.line, to_expr_noquote.(m.args)...)
 end
 
+const doc_macro_arg = GlobalRef(Core, Symbol("@doc"))
+
 """
     doc_macro
 
 A `MacroCall` corresponding to `Core.@doc`
 """
-const doc_macro = MacroCall(; name=GlobalRef(Core, Symbol("@doc")))
+const doc_macro = MacroCall(; name=doc_macro_arg)
 
 """
     __doc__macro
@@ -97,3 +99,35 @@ assume_effects
 A `MacroCall` corresponding to `Base.@assume_effects :foldable`
 """
 assume_foldable
+
+"""
+    DocExpr{E}(; line::LineNumberNode, docstr::Union{String, Expr}, expr::E)
+
+Matches a standard documented expression `expr`, e.g.,
+
+```julia
+"documentation"
+expr
+```
+"""
+Base.@kwdef struct DocExpr{E} <: AbstractExpr 
+    line::LineNumberNode
+    docstr::Union{String, Expr}
+    expr::E
+end
+
+function _from_expr(::Type{DocExpr{E}}, expr) where {E}
+    if Meta.isexpr(expr, :macrocall) && length(expr.args) == 4 && expr.args[1] isa GlobalRef && expr.args[1].mod == doc_macro_arg.mod && expr.args[1].name === doc_macro_arg.name && expr.args[2] isa LineNumberNode && (expr.args[3] isa String || expr.args[3] isa Expr)
+        inner_expr = _from_expr(E, expr.args[4])
+        inner_expr isa ArgumentError && return inner_expr
+        line = expr.args[2]
+        docstr = expr.args[3]
+        return DocExpr(line, docstr, inner_expr)
+    else
+        return @arg_error expr "Must be a `Core.@doc` macro"
+    end
+end
+
+function to_expr(m::DocExpr)
+    return Expr(:macrocall, doc_macro_arg, m.line, m.docstr, to_expr_noquote(m.expr))
+end

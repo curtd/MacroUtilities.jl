@@ -69,6 +69,7 @@ NestedDotExpr
 ### Macro Expressions
 ```@docs 
 MacroCall
+DocExpr
 doc_macro
 __doc__macro
 assume_effects
