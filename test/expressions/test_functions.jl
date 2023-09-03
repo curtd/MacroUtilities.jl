@@ -49,6 +49,8 @@ end
             :(A.f())                    | FuncCall(; funcname=:(A.f))
             :(A.f(z, true; a, b=2, c=x))                    | FuncCall(; funcname=:(A.f), args=[FuncArg(; name=:z), FuncArg(; value=true)], kwargs=MacroUtilities.OrderedDict( :a => FuncArg(; name=:a), :b => FuncArg(; name=:b, value=2), :c => FuncArg(; name=:c, value=:x )))
             :(A.f(z, args...; a::Int, kwargs...))                    | FuncCall(; funcname=:(A.f), args=[FuncArg(; name=:z), FuncArg(; name=:args, is_splat=true)], kwargs=MacroUtilities.OrderedDict( :a => FuncArg(; name=:a, type=:Int), :kwargs => FuncArg(; name=:kwargs, is_splat=true)))
+            :(A.f(z, args...; a::Int, kwargs...))                    | FuncCall(; funcname=:(A.f), args=[FuncArg(; name=:z), FuncArg(; name=:args, is_splat=true)], kwargs=[FuncArg(; name=:a, type=:Int), FuncArg(; name=:kwargs, is_splat=true)])
+            :(A.f(z, args...; a::Int, kwargs...))                    | FuncCall(; funcname=:(A.f), args=[FuncArg(; name=:z), FuncArg(; name=:args, is_splat=true)], kwargs=[:a => FuncArg(; name=:a, type=:Int), :kwargs => FuncArg(; name=:kwargs, is_splat=true)])
 
             @test isequal(from_expr(FuncCall, input), output)
             @test isequal(to_expr(output), input)
