@@ -152,11 +152,31 @@ Matches a function call expression
 - `funcname::Union{NotProvided, Symbol, Expr}`
 - `args::Vector{FuncArg} = Vector{FuncArg}()`
 - `kwargs::OrderedDict{Symbol, FuncArg} = OrderedDict{Symbol, FuncArg}()`
+
+In the `FuncArgs` keyword constructor, `kwargs` may also be a `Vector{FuncArg}` or a `Vector{Pair{Symbol, FuncArg}}`
 """
-Base.@kwdef struct FuncCall <: AbstractExpr
+struct FuncCall <: AbstractExpr
     funcname::Union{NotProvided, Symbol, Expr}
-    args::Vector{FuncArg} = Vector{FuncArg}()
-    kwargs::OrderedDict{Symbol, FuncArg} = OrderedDict{Symbol, FuncArg}()
+    args::Vector{FuncArg}
+    kwargs::OrderedDict{Symbol, FuncArg}
+end
+
+function FuncCall(; funcname::Union{NotProvided, Symbol, Expr}, args::Vector{FuncArg}=FuncArg[], kwargs::Union{OrderedDict{Symbol, FuncArg}, Vector{FuncArg}, Vector{Pair{Symbol, FuncArg}}}= OrderedDict{Symbol, FuncArg}())
+    if kwargs isa OrderedDict{Symbol, FuncArg}
+        _kwargs = kwargs 
+    elseif kwargs isa Vector{FuncArg}
+        _kwargs = OrderedDict{Symbol, FuncArg}()
+        for kwarg in kwargs
+            is_provided(kwarg.name) || error("Must provide kwarg name in $(to_expr(kwarg))")
+            _kwargs[kwarg.name] = kwarg
+        end
+    else
+        _kwargs = OrderedDict{Symbol, FuncArg}()
+        for (name, kwarg) in kwargs
+            _kwargs[name] = kwarg 
+        end
+    end
+    return FuncCall(funcname, args, _kwargs)
 end
 
 """
