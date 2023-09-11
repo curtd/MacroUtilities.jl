@@ -15,6 +15,8 @@ function parse_kv_spec_from_type_expr(expr)
             for arg in args 
                 push!(expected_types, arg)
             end
+        @case Expr(:curly, :Vector, arg)
+            push!(expected_types, Expr(:curly, :Vector, arg))
         @case Expr(:., arg1, arg2) 
             push!(expected_types, f.type)
         @case ::Symbol

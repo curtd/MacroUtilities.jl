@@ -1,4 +1,4 @@
-macro ex_macro(args...)
+macro parse_kwargs_macro1(args...)
     rest = @parse_kwargs args... begin 
         key1 = (expected_type = Int)
         key2 = (expected_types = (Bool, Symbol, Vector{Symbol}), default = false)
@@ -9,10 +9,21 @@ macro ex_macro(args...)
         rest = $(Expr(:tuple, QuoteNode.(rest)...))
     end |> esc
 end
-macro ex_macro2(args...)
+macro parse_kwargs_macro2(args...)
     @parse_kwargs args... begin 
         key1::Int
         key2::Union{Bool, Symbol, Vector{Symbol}} = false
+    end
+    return quote 
+        key1 = $key1 
+        key2 = $key2
+    end |> esc
+end
+
+macro parse_kwargs_macro3(args...)
+    @parse_kwargs args... begin 
+        key1::Union{String, Nothing}
+        key2::Vector{String} = String[]
     end
     return quote 
         key1 = $key1 
@@ -41,13 +52,15 @@ end
 @testset "@parse_kwargs" begin 
     @testset "KVSpecExpr" begin 
         @test_cases begin 
-            input                                   | output
-            :(key::String)                          | MacroUtilities.KVSpecExpr(; key=:key, expected_types=Set([:String]))
-            :(key::Union{String,Int})               | MacroUtilities.KVSpecExpr(; key=:key, expected_types=Set([:String, :Int]))
-            :(key::Union{String,Int, Base.Float64}) |  MacroUtilities.KVSpecExpr(; key=:key, expected_types=Set([:String, :Int, :(Base.Float64)]))
+            input                                            | output
+            :(key::String)                                   | MacroUtilities.KVSpecExpr(; key=:key, expected_types=Set([:String]))
+            :(key::Vector{String})                           | MacroUtilities.KVSpecExpr(; key=:key, expected_types=Set([:(Vector{String})]))
+            :(key::Union{String,Int})                        | MacroUtilities.KVSpecExpr(; key=:key, expected_types=Set([:String, :Int]))
+            :(key::Union{Vector{String},Int})                | MacroUtilities.KVSpecExpr(; key=:key, expected_types=Set([:(Vector{String}), :Int]))
+            :(key::Union{String,Int, Base.Float64})          |  MacroUtilities.KVSpecExpr(; key=:key, expected_types=Set([:String, :Int, :(Base.Float64)]))
             :(key::Union{String,Int, Base.Float64} = "abcd") | MacroUtilities.KVSpecExpr(; key=:key, expected_types=Set([:String, :Int, :(Base.Float64)]), default_value="abcd")
-            :(key = (expected_type=String,))        | MacroUtilities.KVSpecExpr(; key=:key, expected_types=Set([:String]))
-            :(key = (expected_types=(String,Int), default=1))  | MacroUtilities.KVSpecExpr(; key=:key, expected_types=Set([:String, :Int]), default_value=1)
+            :(key = (expected_type=String,))                 | MacroUtilities.KVSpecExpr(; key=:key, expected_types=Set([:String]))
+            :(key = (expected_types=(String,Int), default=1))| MacroUtilities.KVSpecExpr(; key=:key, expected_types=Set([:String, :Int]), default_value=1)
             @test from_expr(MacroUtilities.KVSpecExpr, input) == output
         end
     end
@@ -73,39 +86,60 @@ end
     end
    
     let 
-        @ex_macro key1=0
+        @parse_kwargs_macro1 key1=0
         @test key1 == 0 
         @test key2 == false
         @test isempty(rest)
     end
     let 
-        @ex_macro key1=1 a=1 f(x)
+        @parse_kwargs_macro1 key1=1 a=1 f(x)
         @test key1 == 1 
         @test key2 == false
         @test rest == (:(a=1), :(f(x)))
     end
     let 
-        @ex_macro key1=1 key2=[a,b,c]
+        @parse_kwargs_macro1 key1=1 key2=[a,b,c]
         @test key1 == 1
         @test key2 == [:a,:b,:c]
         @test isempty(rest)
     end
     let 
-        @ex_macro2 key1=0
+        @parse_kwargs_macro2 key1=0
         @test key1 == 0 
         @test key2 == false
     end
     let 
         key2 = 1
-        @ex_macro2 key1=0 key2
+        @parse_kwargs_macro2 key1=0 key2
         @test key1 == 0 
         @test key2 == 1
     end
     let 
-        @ex_macro2 key1=1 key2=[a,b,c]
+        @parse_kwargs_macro2 key1=1 key2=[a,b,c]
         @test key1 == 1
         @test key2 == [:a,:b,:c]
     end
+    let 
+        @parse_kwargs_macro3 key1="abc"
+        @test key1 == "abc"
+        @test key2 == String[]
+    end
+    let 
+        @parse_kwargs_macro3 key1="a" key2="z"
+        @test key1 == "a"
+        @test key2 == ["z"]
+    end
+    let 
+        @parse_kwargs_macro3 key1="a" key2=("z","y")
+        @test key1 == "a"
+        @test key2 == ["z","y"]
+    end
+    let 
+        @parse_kwargs_macro3 key1=nothing key2=["z","y"]
+        @test key1 |> isnothing
+        @test key2 == ["z","y"]
+    end
+
     let 
         TestParseKwargsOuter.TestParseKwargsInner.@a key1="abc"
         @test a == "abc"    
