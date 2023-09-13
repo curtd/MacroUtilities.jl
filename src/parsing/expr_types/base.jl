@@ -25,7 +25,109 @@ end
 Base.:(==)(x::T, y::T) where {T<:AbstractExpr} =  all(getfield(x,k) == getfield(y,k) for k in fieldnames(T))
 Base.copy(x::T) where {T<:AbstractExpr} = T(x)
 
+"""
+    TypeVarExpr <: AbstractExpr
 
+Matches expressions of the form
+- `typename`
+- `typename <: UB` 
+- `typename >: LB`
+- `LB <: typename <: UB`
+
+## Constructors 
+```
+    TypeVarExpr{LB, UB}(; typename::Symbol, lb::Union{LB, NotProvided}=not_provided, ub::Union{UB, NotProvided}=not_provided)
+
+    TypeVarExpr(typename::Symbol, [lb], [ub])
+
+    TypeVarExpr{LB, UB}(t::TypeVarExpr)
+```
+
+"""
+struct TypeVarExpr{LB, UB} <: AbstractExpr 
+    typename::Symbol 
+    lb::MaybeProvided{LB}
+    ub::MaybeProvided{UB}
+    function TypeVarExpr{LB, UB}(typename::Symbol, lb::MaybeProvided{LB}, ub::MaybeProvided{UB}) where {LB, UB}
+        return new{LB, UB}(typename, lb, ub)
+    end
+end
+
+function TypeVarExpr{LB, UB}(; typename::Symbol, lb::MaybeProvided{LB}=not_provided, ub::MaybeProvided{UB}=not_provided) where {LB, UB}
+    return TypeVarExpr{LB, UB}(typename, lb, ub)
+end
+
+TypeVarExpr(; kwargs...) = TypeVarExpr{Any,Any}(; kwargs...)
+
+function TypeVarExpr(typename::Symbol, lb=not_provided, ub=not_provided)
+    if is_not_provided(lb)
+        LB = Any 
+    else
+        LB = typeof(lb)
+    end
+    if is_not_provided(ub)
+        UB = Any 
+    else
+        UB = typeof(ub)
+    end
+    return TypeVarExpr{LB, UB}(typename, lb, ub)
+end
+
+function _from_expr(::Type{TypeVarExpr{LB, UB}}, expr) where {LB, UB}
+    @switch expr begin 
+        @case Expr(:(<:), lhs, rhs) && if lhs isa Symbol end
+            ub = _from_expr(UB, rhs)
+            ub isa Exception && return ub
+            return TypeVarExpr{LB, UB}(; typename=lhs, ub)
+        @case Expr(:(>:), lhs, rhs) && if lhs isa Symbol end 
+            lb = _from_expr(LB, rhs)
+            lb isa Exception && return lb
+            return TypeVarExpr{LB, UB}(; typename=lhs, lb)
+        @case Expr(:comparison, lhs, :(<:), typename, :(<:), rhs) && if typename isa Symbol end
+            lb = _from_expr(LB, lhs)
+            lb isa Exception && return lb
+            ub = _from_expr(UB, rhs)
+            ub isa Exception && return ub
+            return TypeVarExpr{LB, UB}(; typename, lb, ub)
+        @case ::Symbol 
+            return TypeVarExpr{LB, UB}(; typename=expr)
+        @case _ 
+            return ArgumentError("Input expression `$expr` is not a valid TypeVarExpr{$LB, $UB}")
+    end
+end
+
+_from_expr(::Type{TypeVarExpr}, expr) = _from_expr(TypeVarExpr{Any,Any}, expr)
+
+function to_expr(t::TypeVarExpr)
+    if is_provided(t.lb)
+        if is_provided(t.ub)
+            return Expr(:comparison, to_expr_noquote(t.lb), :(<:), t.typename, :(<:), to_expr_noquote(t.ub))
+        else
+            return Expr(:(>:), t.typename, to_expr_noquote(t.lb))
+        end
+    else
+        if is_provided(t.ub)
+            return Expr(:(<:), t.typename, to_expr_noquote(t.ub))
+        else
+            return t.typename
+        end
+    end
+end
+
+TypeVarExpr(t::TypeVarExpr{LB, UB}; typename=t.typename, lb::MaybeProvided{LB}=copy_value(t.lb), ub::MaybeProvided{UB}=copy_value(t.ub)) where {LB, UB} = TypeVarExpr{LB, UB}(typename, lb, ub)
+
+TypeVarExpr{LB, UB}(t::TypeVarExpr{LB, UB}) where {LB, UB} = TypeVarExpr(t)
+
+"""
+    CurlyExpr{FirstArg, E} <: AbstractExpr
+
+Matches an expression of the form `FirstArg{args...}`, if `FirstArg` is a `Symbol`, or `args[1]{args[2:end]...}` otherwise.
+
+## Constructors 
+```
+    CurlyExpr{FirstArg, E}(; args::Vector{E}) 
+```
+"""
 Base.@kwdef struct CurlyExpr{FirstArg, E} <: AbstractExpr 
     args::Vector{E} = E[]
 end
@@ -45,6 +147,36 @@ function _from_expr(::Type{CurlyExpr{FirstArg, E}}, expr) where {FirstArg, E}
     end
 end
 
+function _from_expr(::Type{CurlyExpr{Symbol, E}}, expr) where {E}
+    @switch expr begin 
+        @case Expr(:curly, first_arg, args...) && if first_arg isa Symbol end 
+            output = E[]
+            for arg in args 
+                e = _from_expr(E, arg)
+                e isa Exception && return e
+                push!(output, e)
+            end
+            return CurlyExpr{first_arg, E}(output)
+        @case _ 
+            return ArgumentError("Input expression `$expr` is not a valid CurlyExpr{$FirstArg} expression")
+    end
+end
+
+function _from_expr(::Type{CurlyExpr{E}}, expr) where {E}
+    @switch expr begin 
+        @case Expr(:curly, args...)
+            output = E[] 
+            for arg in args 
+                e = _from_expr(E, arg)
+                e isa Exception && return e
+                push!(output, e)
+            end
+            return CurlyExpr{Expr, E}(output)
+        @case _ 
+            return ArgumentError("Input expression `$expr` is not a valid CurlyExpr{$E} expression")
+    end
+end
+
 function _from_expr(::Type{CurlyExpr}, expr)
     @switch expr begin 
         @case Expr(:curly, first_arg, args...)
@@ -61,9 +193,26 @@ function _from_expr(::Type{CurlyExpr}, expr)
     end
 end
 
-to_expr(f::CurlyExpr{FirstArg, E}) where {FirstArg, E} = Expr(:curly, FirstArg, f.args...)
-to_expr(f::CurlyExpr{Expr, E}) where {E} = Expr(:curly, f.args...)
+first_arg(f::CurlyExpr{Expr, E}) where {E} = first(f.args)
+first_arg(::CurlyExpr{FirstArg, E}) where {FirstArg, E} = FirstArg
 
+to_expr(f::CurlyExpr{FirstArg, E}) where {FirstArg, E} = Expr(:curly, FirstArg, map(to_expr_noquote, f.args)...)
+to_expr(f::CurlyExpr{Expr, E}) where {E} = Expr(:curly, map(to_expr_noquote, f.args)...)
+
+CurlyExpr(f::CurlyExpr{FirstArg, E}; args::Vector{E}=copy_value(f.args), first_arg=FirstArg) where {FirstArg, E} = CurlyExpr{first_arg, E}(; args)
+
+"""
+    CurlyExpr(first_arg::Symbol, args...)
+"""
+function CurlyExpr(first_arg::Symbol, args...) 
+    E = mapfoldl(typeof, promote_type, args; init=Union{})
+    return CurlyExpr{first_arg, E}(convert(Vector{E}, collect(args)))
+end
+
+function CurlyExpr(args...) 
+    E = mapfoldl(typeof, promote_type, args, init=Union{})
+    return CurlyExpr{Expr, E}(convert(Vector{E}, collect(args)))
+end
 """
     UnionExpr(; args::Vector{Union{Symbol, Expr}})
 

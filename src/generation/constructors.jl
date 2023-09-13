@@ -16,7 +16,7 @@ function kwarg_constructor(typename, fields::Vector{TypedVar}, default_vals; lnn
     if !isnothing(lnn)
         pushfirst!(body.args, lnn)
     end
-    return FuncDef(; header=header, head=:(=), body=body, whereparams=whereparams)
+    return FuncDef(; header, head=:(=), body, whereparams)
 end
 
 """

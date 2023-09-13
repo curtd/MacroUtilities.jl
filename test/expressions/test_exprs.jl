@@ -56,18 +56,35 @@
         end
         @Test from_expr(UnionExpr, :(f(x))) |> isnothing
     end
-    @testset "CurlyExpr" begin 
+    @testset "TypeVarExpr" begin 
         @test_cases begin 
-            input               |   output 
-            :(Union{A,B})       | MacroUtilities.CurlyExpr{:Union, Any}(Any[:A, :B])
-            :(Union{})          | MacroUtilities.CurlyExpr{:Union, Any}(Any[])
-            :(Union{A, F(B)})   | MacroUtilities.CurlyExpr{:Union, Any}(Any[:A, :(F(B))])
-            :(F{A, G(B)})       | MacroUtilities.CurlyExpr{:F, Any}(Any[:A, :(G(B))])
-            :(H.F{A, G(B)})     | MacroUtilities.CurlyExpr{Expr, Any}(Any[:(H.F), :A, :(G(B))])
-            @test from_expr(MacroUtilities.CurlyExpr, input) == output
+            input               | output
+            :(A)                | TypeVarExpr{Any,Any}(; typename=:A)
+            :(A <: B)           | TypeVarExpr{Any,Any}(; typename=:A, ub=:B)
+            :(A <: B <: C)      | TypeVarExpr(; typename=:B, lb=:A, ub=:C)
+            :(A >: B)           | TypeVarExpr(; typename=:A, lb=:B)
+            @test from_expr(TypeVarExpr, input) == output
             @test to_expr(output) == input
         end
     end
+    @testset "CurlyExpr" begin 
+        @test_cases begin 
+            input               |   output 
+            :(Union{A,B})       | CurlyExpr{:Union, Any}(Any[:A, :B])
+            :(Union{})          | CurlyExpr{:Union, Any}(Any[])
+            :(Union{A, F(B)})   | CurlyExpr{:Union, Any}(Any[:A, :(F(B))])
+            :(F{A, G(B)})       | CurlyExpr{:F, Any}(Any[:A, :(G(B))])
+            :(H.F{A, G(B)})     | CurlyExpr{Expr, Any}(Any[:(H.F), :A, :(G(B))])
+            @test from_expr(CurlyExpr, input) == output
+            @test to_expr(output) == input
+        end
+        @Test to_expr(CurlyExpr(:A)) == :(A{})
+        @Test to_expr(CurlyExpr(:A, UnionExpr(; args=[:T, :B]))) == :(A{Union{T, B}})
+        @Test to_expr(CurlyExpr(:A, UnionExpr(; args=[:T, :B]), :C)) == :(A{Union{T, B}, C})
+        @Test to_expr(CurlyExpr(NestedDotExpr(; keys=[:A, :B]), :C)) == :(A.B{C})
+        @Test to_expr(CurlyExpr(:T, TypeVarExpr(; typename=:A, ub=:B), TypeVarExpr(; typename=:C, lb=:D))) == :(T{A<:B, C >: D})
+    end
+  
 
     @testset "NamedTupleExpr" begin 
         ex = :((a=1, b=f(x)))
