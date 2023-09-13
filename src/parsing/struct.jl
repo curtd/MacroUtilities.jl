@@ -5,13 +5,29 @@ Matches the header of a struct definition
 
 # Fields 
 - `typename::Symbol`
-- `parameters::Vector{Any} = Any[]`
+- `parameters::Vector{TypeVarExpr} = TypeVarExpr[]`
 - `supertype::Union{Symbol, Expr, NotProvided} = not_provided`
 """
-Base.@kwdef struct StructDefHeader <: AbstractExpr 
+struct StructDefHeader <: AbstractExpr 
     typename::Symbol 
-    parameters::Vector{Any} = Any[]
-    supertype::Union{Symbol, Expr, NotProvided} = not_provided
+    parameters::Vector{TypeVarExpr}
+    supertype::Union{Symbol, Expr, NotProvided}
+end
+
+function StructDefHeader(; typename::Symbol, parameters::Vector{<:Any}=TypeVarExpr[], supertype::Union{Symbol, Expr, NotProvided}=not_provided)
+    if parameters isa Vector{TypeVarExpr}
+        params = parameters
+    else
+        params = TypeVarExpr[]
+        for input in parameters 
+            if input isa TypeVarExpr 
+                push!(params, input)
+            else
+                push!(params, from_expr(TypeVarExpr, input; throw_error=true)) 
+            end
+        end
+    end
+    return StructDefHeader(typename, params, supertype)
 end
 
 function _from_expr(::Type{StructDefHeader}, expr)
@@ -21,14 +37,13 @@ function _from_expr(::Type{StructDefHeader}, expr)
         @case _ 
             (expr, not_provided)
     end
-    (typename, parameters) = @switch rest begin 
-        @case Expr(:curly, typename, parameters...)
-            (typename, convert(Vector{Any}, parameters))
-        @case _
-            (rest, Any[])
-    end
-    if !(typename isa Symbol)
-        return ArgumentError("Typename `$typename` derived from input expression `$expr` is not a Symbol")
+    if rest isa Symbol 
+        typename = rest
+        parameters = TypeVarExpr[]
+    else
+        curly = _from_expr(CurlyExpr{Symbol, TypeVarExpr}, rest); 
+        typename = first_arg(curly)
+        parameters = curly.args
     end
     return StructDefHeader(; typename, parameters, supertype)
 end
@@ -36,7 +51,7 @@ end
 function to_expr(h::StructDefHeader)
     expr = h.typename
     if !isempty(h.parameters)
-        expr = Expr(:curly, h.typename, h.parameters...)
+        expr = Expr(:curly, h.typename, map(to_expr_noquote, h.parameters)...)
     end
     if is_provided(h.supertype)
         expr = Expr(:(<:), expr, h.supertype)
@@ -92,16 +107,7 @@ function free_params(expr)
     end
 end
 
-function free_params(f::StructDefHeader)
-    outputs = Symbol[]
-    for arg in f.parameters
-        out_args = free_params(arg)
-        if !isnothing(out_args)
-            append!(outputs, out_args)
-        end
-    end
-    return outputs 
-end
+free_params(f::StructDefHeader) = Symbol[ param.typename for param in f.parameters ]
 
 function typename_w_params(f::StructDefHeader)
     _params = free_params(f)
@@ -109,7 +115,7 @@ function typename_w_params(f::StructDefHeader)
     return Expr(:curly, f.typename, _params...)
 end
 
-whereparams(f::StructDefHeader) = isempty(f.parameters) ? not_provided : f.parameters
+whereparams(f::StructDefHeader) = isempty(f.parameters) ? not_provided : map(to_expr_noquote,f.parameters)
 
 """
     StructDef(; is_mutable, header, lnn, fields, constructors)

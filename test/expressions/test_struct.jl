@@ -1,4 +1,18 @@
 @testset "Struct parsing" begin 
+    @testset "StructDefHeader" begin 
+        @test_cases begin 
+            input                   |       output 
+            :A                      | StructDefHeader(; typename=:A)
+            :(A <: B)               | StructDefHeader(; typename=:A, supertype=:B)
+            :(A{C} <: B)            | StructDefHeader(; typename=:A, parameters=[TypeVarExpr(; typename=:C)], supertype=:B)
+            :(A{C <: D} <: B)       | StructDefHeader(; typename=:A, parameters=[TypeVarExpr(; typename=:C, ub=:D)], supertype=:B)
+            :(A{C <: D} <: B)       | StructDefHeader(; typename=:A, parameters=[:(C <: D)], supertype=:B)
+            :(A{C <: D, E} <: B)    | StructDefHeader(; typename=:A, parameters=[TypeVarExpr(; typename=:C, ub=:D), TypeVarExpr(; typename=:E)], supertype=:B)
+            @test from_expr(StructDefHeader, input) == output
+            @test to_expr(output) == input
+        end
+    end
+
     ex = quote 
         struct A end 
     end
@@ -27,7 +41,7 @@
     f = from_expr(StructDef, ex)
     @Test f.typename == :A
     @Test f.supertype == :(C{T})
-    @Test f.parameters == [:(B<:T)]
+    @Test f.parameters == [ TypeVarExpr(; typename=:B, ub=:T) ]
     @Test f.is_mutable == true 
     @Test f.fields == [(TypedVar(; name=:key1, type=:B), ex.args[2].args[3].args[1]), (TypedVar(; name=:key2, type=:(Vector{Any})), ex.args[2].args[3].args[3]), (TypedVar(; name=:key3), ex.args[2].args[3].args[5])]
 

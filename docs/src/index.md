@@ -33,6 +33,8 @@ NamedTupleArg
 NamedTupleArg(f::NamedTupleArg)
 NamedTupleExpr
 NamedTupleExpr(names::Vector{Symbol})
+TypeVarExpr
+CurlyExpr
 UnionExpr
 TypedVar
 TypedVar(d::TypedVar)

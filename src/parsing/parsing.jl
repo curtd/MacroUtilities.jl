@@ -77,6 +77,7 @@ function from_expr(::Type{T}, expr; throw_error::Bool=false, kwargs...) where {T
     return nothing
 end
 
+from_expr(::Type{T}, expr::S; kwargs...) where {T, S<:T} = expr
 
 """
     to_expr(x) -> Expr 
