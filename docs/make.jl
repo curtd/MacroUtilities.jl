@@ -24,7 +24,7 @@ makedocs(;
     pages=[
         "API" => "index.md",
     ],
-    warnonly=true
+    warnonly=Documenter.except(:missing_docs)
 )
 
 deploydocs(;
