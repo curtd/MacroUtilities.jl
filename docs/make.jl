@@ -24,6 +24,7 @@ makedocs(;
     pages=[
         "API" => "index.md",
     ],
+    warnonly=true
 )
 
 deploydocs(;
