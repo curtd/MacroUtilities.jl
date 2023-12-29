@@ -10,20 +10,20 @@ Matches the header of a struct definition
 """
 struct StructDefHeader <: AbstractExpr 
     typename::Symbol 
-    parameters::Vector{TypeVarExpr}
+    parameters::Vector{SymbolTypeVar}
     supertype::Union{Symbol, Expr, NotProvided}
 end
 
-function StructDefHeader(; typename::Symbol, parameters::Vector{<:Any}=TypeVarExpr[], supertype::Union{Symbol, Expr, NotProvided}=not_provided)
-    if parameters isa Vector{TypeVarExpr}
+function StructDefHeader(; typename::Symbol, parameters::Vector{<:Any}=SymbolTypeVar[], supertype::Union{Symbol, Expr, NotProvided}=not_provided)
+    if typeof(parameters) <: Vector{<:SymbolTypeVar}
         params = parameters
     else
-        params = TypeVarExpr[]
+        params = SymbolTypeVar[]
         for input in parameters 
-            if input isa TypeVarExpr 
+            if input isa SymbolTypeVar 
                 push!(params, input)
             else
-                push!(params, from_expr(TypeVarExpr, input; throw_error=true)) 
+                push!(params, from_expr(SymbolTypeVar, input; throw_error=true)) 
             end
         end
     end

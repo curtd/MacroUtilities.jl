@@ -31,7 +31,9 @@ Base.copy(x::T) where {T<:AbstractExpr} = T(x)
 Matches expressions of the form
 - `typename`
 - `typename <: UB` 
+- `<: UB`
 - `typename >: LB`
+- `>: LB`
 - `LB <: typename <: UB`
 
 ## Constructors 
@@ -44,22 +46,29 @@ Matches expressions of the form
 ```
 
 """
-struct TypeVarExpr{LB, UB} <: AbstractExpr 
-    typename::Symbol 
+struct TypeVarExpr{T, LB, UB} <: AbstractExpr 
+    typename::T
     lb::MaybeProvided{LB}
     ub::MaybeProvided{UB}
-    function TypeVarExpr{LB, UB}(typename::Symbol, lb::MaybeProvided{LB}, ub::MaybeProvided{UB}) where {LB, UB}
-        return new{LB, UB}(typename, lb, ub)
+    function TypeVarExpr{T, LB, UB}(typename::T, lb::MaybeProvided{LB}, ub::MaybeProvided{UB}) where {T, LB, UB}
+        return new{T, LB, UB}(typename, lb, ub)
     end
 end
 
-function TypeVarExpr{LB, UB}(; typename::Symbol, lb::MaybeProvided{LB}=not_provided, ub::MaybeProvided{UB}=not_provided) where {LB, UB}
-    return TypeVarExpr{LB, UB}(typename, lb, ub)
+function TypeVarExpr{T, LB, UB}(; typename::T, lb::MaybeProvided{LB}=not_provided, ub::MaybeProvided{UB}=not_provided) where {T, LB, UB}
+    return TypeVarExpr{T, LB, UB}(typename, lb, ub)
 end
 
-TypeVarExpr(; kwargs...) = TypeVarExpr{Any,Any}(; kwargs...)
+TypeVarExpr(; kwargs...) = TypeVarExpr{Symbol, Any,Any}(; kwargs...)
 
-function TypeVarExpr(typename::Symbol, lb=not_provided, ub=not_provided)
+const SymbolTypeVar{LB, UB} = TypeVarExpr{Symbol, LB, UB}
+
+function TypeVarExpr(typename, lb=not_provided, ub=not_provided)
+    if is_not_provided(typename)
+        T = MaybeProvded{Symbol}
+    else
+        T = typeof(typename)
+    end
     if is_not_provided(lb)
         LB = Any 
     else
@@ -70,53 +79,77 @@ function TypeVarExpr(typename::Symbol, lb=not_provided, ub=not_provided)
     else
         UB = typeof(ub)
     end
-    return TypeVarExpr{LB, UB}(typename, lb, ub)
+    return TypeVarExpr{T, LB, UB}(typename, lb, ub)
 end
 
-function _from_expr(::Type{TypeVarExpr{LB, UB}}, expr) where {LB, UB}
+function _from_expr(::Type{TypeVarExpr{T, LB, UB}}, expr) where {T, LB, UB}
     @switch expr begin 
-        @case Expr(:(<:), lhs, rhs) && if lhs isa Symbol end
+        @case Expr(:(<:), rhs) && if NotProvided <: T end
             ub = _from_expr(UB, rhs)
             ub isa Exception && return ub
-            return TypeVarExpr{LB, UB}(; typename=lhs, ub)
-        @case Expr(:(>:), lhs, rhs) && if lhs isa Symbol end 
+            return TypeVarExpr{T, LB, UB}(; typename=not_provided, ub)
+        @case Expr(:(<:), lhs, rhs)
+            ub = _from_expr(UB, rhs)
+            ub isa Exception && return ub
+            typename = _from_expr(T, lhs)
+            typename isa Exception && return typename
+            return TypeVarExpr{T, LB, UB}(; typename, ub)
+        @case Expr(:(>:), lhs, rhs)
             lb = _from_expr(LB, rhs)
             lb isa Exception && return lb
-            return TypeVarExpr{LB, UB}(; typename=lhs, lb)
-        @case Expr(:comparison, lhs, :(<:), typename, :(<:), rhs) && if typename isa Symbol end
+            typename = _from_expr(T, lhs)
+            typename isa Exception && return typename
+            return TypeVarExpr{T, LB, UB}(; typename, lb)
+        @case Expr(:comparison, lhs, :(<:), t, :(<:), rhs)
             lb = _from_expr(LB, lhs)
             lb isa Exception && return lb
             ub = _from_expr(UB, rhs)
             ub isa Exception && return ub
-            return TypeVarExpr{LB, UB}(; typename, lb, ub)
-        @case ::Symbol 
-            return TypeVarExpr{LB, UB}(; typename=expr)
+            typename = _from_expr(T, t)
+            typename isa Exception && return typename
+            return TypeVarExpr{T, LB, UB}(; typename, lb, ub)
         @case _ 
-            return ArgumentError("Input expression `$expr` is not a valid TypeVarExpr{$LB, $UB}")
+            typename = _from_expr(T, expr)
+            typename isa Exception && return typename 
+            return TypeVarExpr{T, LB, UB}(; typename)
     end
 end
 
-_from_expr(::Type{TypeVarExpr}, expr) = _from_expr(TypeVarExpr{Any,Any}, expr)
+_from_expr(::Type{TypeVarExpr}, expr) = _from_expr(TypeVarExpr{Symbol, Any, Any}, expr)
+_from_expr(::Type{TypeVarExpr{T}}, expr) where {T} = _from_expr(TypeVarExpr{T, Any, Any}, expr)
 
 function to_expr(t::TypeVarExpr)
     if is_provided(t.lb)
         if is_provided(t.ub)
-            return Expr(:comparison, to_expr_noquote(t.lb), :(<:), t.typename, :(<:), to_expr_noquote(t.ub))
+            return Expr(:comparison, to_expr_noquote(t.lb), :(<:), to_expr_noquote(t.typename), :(<:), to_expr_noquote(t.ub))
         else
-            return Expr(:(>:), t.typename, to_expr_noquote(t.lb))
+            if is_provided(t.typename)
+                return Expr(:(>:), to_expr_noquote(t.typename), to_expr_noquote(t.lb))
+            else
+                return Expr(:(>:), to_expr_noquote(t.lb))
+            end
         end
     else
         if is_provided(t.ub)
-            return Expr(:(<:), t.typename, to_expr_noquote(t.ub))
+            if is_provided(t.typename)
+                return Expr(:(<:), to_expr_noquote(t.typename), to_expr_noquote(t.ub))
+            else
+                return Expr(:(<:), to_expr_noquote(t.ub))
+            end
         else
-            return t.typename
+            if is_provided(t.typename)
+                return to_expr_noquote(t.typename)
+            else
+                return nothing 
+            end
         end
     end
 end
 
-TypeVarExpr(t::TypeVarExpr{LB, UB}; typename=t.typename, lb::MaybeProvided{LB}=copy_value(t.lb), ub::MaybeProvided{UB}=copy_value(t.ub)) where {LB, UB} = TypeVarExpr{LB, UB}(typename, lb, ub)
+TypeVarExpr(t::TypeVarExpr{T, LB, UB}; typename::T=t.typename, lb::MaybeProvided{LB}=copy_value(t.lb), ub::MaybeProvided{UB}=copy_value(t.ub)) where {T, LB, UB} = TypeVarExpr{T, LB, UB}(typename, lb, ub)
 
-TypeVarExpr{LB, UB}(t::TypeVarExpr{LB, UB}) where {LB, UB} = TypeVarExpr(t)
+TypeVarExpr{T, LB, UB}(t::TypeVarExpr{T, LB, UB}) where {T, LB, UB} = TypeVarExpr(t)
+
 
 """
     CurlyExpr{FirstArg, E} <: AbstractExpr
@@ -221,6 +254,14 @@ Matches an expression of the form `Union{T1, T2, ...}`
 const UnionExpr = CurlyExpr{:Union, Union{Symbol, Expr}}
 
 const TypeExpr{E} = CurlyExpr{:Type, E}
+
+
+Base.@kwdef struct CurlyExprWData{FirstArg, E} <: AbstractExpr 
+    first_arg::FirstArg
+    args::Vector{E} = E[]
+end
+
+
 
 """
     NamedTupleArg(; key::Symbol, value=not_provided, is_splat::Bool=false, kw_head::Bool)

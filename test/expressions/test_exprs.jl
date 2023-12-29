@@ -59,11 +59,24 @@
     @testset "TypeVarExpr" begin 
         @test_cases begin 
             input               | output
-            :(A)                | TypeVarExpr{Any,Any}(; typename=:A)
-            :(A <: B)           | TypeVarExpr{Any,Any}(; typename=:A, ub=:B)
+            :(A)                | TypeVarExpr{Symbol, Any,Any}(; typename=:A)
+            :(A <: B)           | TypeVarExpr{Symbol, Any,Any}(; typename=:A, ub=:B)
             :(A <: B <: C)      | TypeVarExpr(; typename=:B, lb=:A, ub=:C)
             :(A >: B)           | TypeVarExpr(; typename=:A, lb=:B)
             @test from_expr(TypeVarExpr, input) == output
+            @test from_expr(MacroUtilities.SymbolTypeVar, input) == output
+            @test to_expr(output) == input
+        end
+        @test_cases begin
+            input               | output
+            :(Union{A, B} <: C) | TypeVarExpr{UnionExpr, Any, Any}(; typename=UnionExpr([:A, :B]), ub=:C)
+            @test from_expr(TypeVarExpr{UnionExpr}, input) == output
+            @test to_expr(output) == input
+        end
+        @test_cases begin 
+            input               | output 
+            :( <: C )           | TypeVarExpr{MaybeProvided{Symbol}, Any, Any}(; typename=not_provided, ub=:C)
+            @test from_expr(TypeVarExpr{MaybeProvided{Symbol}}, input) == output
             @test to_expr(output) == input
         end
     end
@@ -219,8 +232,8 @@
                 @test isequal(from_expr(KVExpr, input), output)
             end
             @test_cases begin 
-                input                                               | output
-                :(key1 = (expected_type = Bool, default=false))     | MacroUtilities.KVSpecExpr(; key=:key1, expected_types=Set([:Bool]), default_value=false)
+                input                                                | output
+                :(key1 = (expected_type = Bool, default=false))      | MacroUtilities.KVSpecExpr(; key=:key1, expected_types=Set([:Bool]), default_value=false)
                 :(key1 = (expected_types = [Bool, Int, Symbol]))     | MacroUtilities.KVSpecExpr(; key=:key1, expected_types=Set([:Bool, :Int, :Symbol]), default_value=MacroUtilities.not_provided)
                 @test isequal(from_expr(MacroUtilities.KVSpecExpr, input), output)
             end
