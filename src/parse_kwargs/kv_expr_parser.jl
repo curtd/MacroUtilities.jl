@@ -107,7 +107,7 @@ Base.@kwdef struct KVSpec
     expected_types::Set{Type}
     default_value::Any = not_provided
     function KVSpec(key::Symbol, expected_types::Set{<:Type}, default_value)
-        (is_not_provided(default_value) || typeof(default_value) in expected_types) || error("Provided `default_value = $(default_value)` has type $(typeof(default_value)), which must be one of ($(join(string.(expected_types), ", ")))")
+        (is_not_provided(default_value) || Any in expected_types || typeof(default_value) in expected_types) || error("Provided `default_value = $(default_value)` has type $(typeof(default_value)), which must be one of ($(join(string.(expected_types), ", ")))")
 
         return new(key, expected_types, default_value)
     end

@@ -31,6 +31,17 @@ macro parse_kwargs_macro3(args...)
     end |> esc
 end
 
+macro parse_kwargs_macro4(args...)
+    @parse_kwargs args... begin 
+        key1::Any
+        key2::Any = nothing
+    end
+    return quote 
+        key1 = $key1 
+        key2 = $key2
+    end |> esc
+end
+
 module TestParseKwargsOuter 
     using MacroUtilities
 
@@ -139,7 +150,16 @@ end
         @test key1 |> isnothing
         @test key2 == ["z","y"]
     end
-
+    let 
+        @parse_kwargs_macro4 key1=1
+        @test key1 == 1
+        @test key2 |> isnothing
+    end
+    let 
+        @parse_kwargs_macro4 key1="a" key2="b"
+        @test key1 == "a"
+        @test key2 == "b"
+    end
     let 
         TestParseKwargsOuter.TestParseKwargsInner.@a key1="abc"
         @test a == "abc"    

@@ -8,7 +8,22 @@ function found_value!(parser::KVExprParser, key::Symbol, (@nospecialize value))
     return nothing
 end
 
+@inline function parse_rhs_symbol(s::Symbol)
+    if s === :nothing 
+        return nothing, Nothing
+    elseif s === :missing 
+        return missing, Missing 
+    else
+        return not_provided, not_provided  
+    end
+end
+
 function parse_kvs!(parser::KVExprParser, exprs; strict::Bool=false)
+    @nospecialize
+    parser_spec = parser.spec 
+    found_values = parser.found_values
+    ignore_unknown_keys = parser.ignore_unknown_keys
+
     non_kw_exprs = Any[]
     for expr in exprs 
         _kv = from_expr(KVExpr, expr; throw_error=strict)
@@ -17,25 +32,30 @@ function parse_kvs!(parser::KVExprParser, exprs; strict::Bool=false)
             continue
         end
         key = _kv.lhs
-        spec = get(parser.spec, key, nothing)
+        spec = get(parser_spec, key, nothing)
         if isnothing(spec) 
             if strict
-                !parser.ignore_unknown_keys && throw(ArgumentError("Unexpected key `$(key)`, expected keys = ($(join(sort!(string.(collect(keys(parser.spec)))), ", ")))"))
+                !ignore_unknown_keys && throw(ArgumentError("Unexpected key `$(key)`, expected keys = ($(join(sort!(string.(collect(keys(parser_spec)))), ", ")))"))
                 return nothing 
             end
             push!(non_kw_exprs, expr)
             continue
         end
+        accept_any = Any in spec.expected_types
         value = _kv.rhs
         valueT = typeof(value)
         local set_value 
-
-        if valueT in spec.expected_types
+        if accept_any || valueT in spec.expected_types
             set_value = value
-        elseif value == :nothing && Nothing in spec.expected_types
-            set_value = nothing
         elseif valueT === NotProvided
-            set_value = key
+            set_value = key 
+        elseif valueT === Symbol 
+            parsed_value, parsed_valueT = parse_rhs_symbol(value)
+            if is_provided(parsed_valueT)
+                if accept_any || parsed_valueT in spec.expected_types
+                    set_value = parsed_value 
+                end
+            end
         else
             if (_eltypes = eltypes(spec); !isempty(_eltypes))
                 for data in _eltypes 
@@ -53,8 +73,8 @@ function parse_kvs!(parser::KVExprParser, exprs; strict::Bool=false)
             throw(ArgumentError("In `$(key) = rhs` expression, rhs (= $(value)) has type $(typeof(value)), which is not one of the expected types ($(join(string.(spec.expected_types), ", ")))"))
         end
     end
-    for (key, spec) in pairs(parser.spec)
-        if !haskey(parser.found_values, key)
+    for (key, spec) in pairs(parser_spec)
+        if !haskey(found_values, key)
             is_not_provided(spec.default_value) && throw(ArgumentError("No value provided for key `$key`"))
             
             found_value!(parser, key, spec.default_value)
@@ -64,6 +84,7 @@ function parse_kvs!(parser::KVExprParser, exprs; strict::Bool=false)
 end
 
 function parse_kwargs_expr(args...; allow_overwrite::Bool=false, ignore_unknown_keys::Bool=false)
+    @nospecialize
     length(args) ≥ 2 || throw(ArgumentError("Must provide at least two arguments"))
     all_args = Expr(:vect, args[1:end-1]...)
 
