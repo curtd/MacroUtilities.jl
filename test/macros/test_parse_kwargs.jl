@@ -24,10 +24,12 @@ macro parse_kwargs_macro3(args...)
     @parse_kwargs args... begin 
         key1::Union{String, Nothing}
         key2::Vector{String} = String[]
+        key3::Vector{Symbol}
     end
-    return quote 
+    return quote
         key1 = $key1 
         key2 = $key2
+        key3 = $key3
     end |> esc
 end
 
@@ -95,74 +97,88 @@ end
         @testthrows "Unexpected key `key3`, expected keys = (key1, key2)" parse_kvs!(parser, [:(key3 = "abc")], strict=true)
         @testthrows "ArgumentError: No value provided for key `key1" parse_kvs!(parser, [:(key3 = "abc")])
     end
-   
-    let 
-        @parse_kwargs_macro1 key1=0
-        @test key1 == 0 
-        @test key2 == false
-        @test isempty(rest)
+    @testset "Basic type parsing" begin 
+        let 
+            @parse_kwargs_macro1 key1=0
+            @test key1 == 0 
+            @test key2 == false
+            @test isempty(rest)
+        end
+        let 
+            @parse_kwargs_macro1 key1=1 a=1 f(x)
+            @test key1 == 1 
+            @test key2 == false
+            @test rest == (:(a=1), :(f(x)))
+        end
+        let 
+            @parse_kwargs_macro1 key1=1 key2=[a,b,c]
+            @test key1 == 1
+            @test key2 == [:a,:b,:c]
+            @test isempty(rest)
+        end
     end
-    let 
-        @parse_kwargs_macro1 key1=1 a=1 f(x)
-        @test key1 == 1 
-        @test key2 == false
-        @test rest == (:(a=1), :(f(x)))
+    @testset "Basic type parsing w/ type shorthand" begin 
+        let 
+            @parse_kwargs_macro2 key1=0
+            @test key1 == 0 
+            @test key2 == false
+        end
+        let 
+            key2 = 1
+            @parse_kwargs_macro2 key1=0 key2
+            @test key1 == 0 
+            @test key2 == 1
+        end
+        let 
+            @parse_kwargs_macro2 key1=1 key2=[a,b,c]
+            @test key1 == 1
+            @test key2 == [:a,:b,:c]
+        end
     end
-    let 
-        @parse_kwargs_macro1 key1=1 key2=[a,b,c]
-        @test key1 == 1
-        @test key2 == [:a,:b,:c]
-        @test isempty(rest)
+    @testset "Parsing vectors" begin 
+        let 
+            @parse_kwargs_macro3 key1="abc" key3=zzz
+            @test key1 == "abc"
+            @test key2 == String[]
+            @test key3 == [:zzz]
+        end
+        let 
+            @parse_kwargs_macro3 key1="a" key2="z" key3=b
+            @test key1 == "a"
+            @test key2 == ["z"]
+            @test key3 == [:b]
+        end
+        let 
+            @parse_kwargs_macro3 key1="a" key2=("z","y") key3=(x,y)
+            @test key1 == "a"
+            @test key2 == ["z","y"]
+            @test key3 == [:x, :y]
+        end
+        let 
+            @parse_kwargs_macro3 key1=nothing key2=["z","y"] key3=[x,y]
+            @test key1 |> isnothing
+            @test key2 == ["z","y"]
+            @test key3 == [:x, :y]
+        end
+
     end
-    let 
-        @parse_kwargs_macro2 key1=0
-        @test key1 == 0 
-        @test key2 == false
+    @testset "Parsing `Any`" begin 
+        let 
+            @parse_kwargs_macro4 key1=1
+            @test key1 == 1
+            @test key2 |> isnothing
+        end
+        let 
+            @parse_kwargs_macro4 key1="a" key2="b"
+            @test key1 == "a"
+            @test key2 == "b"
+        end
     end
-    let 
-        key2 = 1
-        @parse_kwargs_macro2 key1=0 key2
-        @test key1 == 0 
-        @test key2 == 1
-    end
-    let 
-        @parse_kwargs_macro2 key1=1 key2=[a,b,c]
-        @test key1 == 1
-        @test key2 == [:a,:b,:c]
-    end
-    let 
-        @parse_kwargs_macro3 key1="abc"
-        @test key1 == "abc"
-        @test key2 == String[]
-    end
-    let 
-        @parse_kwargs_macro3 key1="a" key2="z"
-        @test key1 == "a"
-        @test key2 == ["z"]
-    end
-    let 
-        @parse_kwargs_macro3 key1="a" key2=("z","y")
-        @test key1 == "a"
-        @test key2 == ["z","y"]
-    end
-    let 
-        @parse_kwargs_macro3 key1=nothing key2=["z","y"]
-        @test key1 |> isnothing
-        @test key2 == ["z","y"]
-    end
-    let 
-        @parse_kwargs_macro4 key1=1
-        @test key1 == 1
-        @test key2 |> isnothing
-    end
-    let 
-        @parse_kwargs_macro4 key1="a" key2="b"
-        @test key1 == "a"
-        @test key2 == "b"
-    end
-    let 
-        TestParseKwargsOuter.TestParseKwargsInner.@a key1="abc"
-        @test a == "abc"    
+    @testset "Avoid " begin 
+        let 
+            TestParseKwargsOuter.TestParseKwargsInner.@a key1="abc"
+            @test a == "abc"    
+        end
     end
 
 end
