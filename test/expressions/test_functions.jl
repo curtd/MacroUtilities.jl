@@ -170,6 +170,26 @@ end
         )
         @test to_expr(f) == ref_ex
 
+        ex = quote 
+            """
+                some_doc
+            """
+            function g(a::Vector{S}; c=:a, kwargs...)::T
+                return a
+            end
+        end
+        f = from_expr(FuncDef, ex)
+        @Test f.head == :function
+        @Test isequal(f.header, FuncCall(; funcname=:g, args=[FuncArg(; name=:a, type=:(Vector{S}))],  kwargs=MacroUtilities.OrderedDict(:c => FuncArg(; name=:c, value=:(:a)), :kwargs => FuncArg(; name=:kwargs, is_splat=true))))
+        @Test f.return_type == :T
+        @Test isequal(f.whereparams, MacroUtilities.not_provided)
+        @Test isequal(f.body, ex.args[2].args[4].args[2])
+        @Test isequal(f.line, ex.args[1])
+        @Test isequal(f.doc, "    some_doc\n")
+        @test to_expr(f) == ex
+
+        @test copy(f) == f
+
         expr = :( (a;b=0) -> a+b )
         f = from_expr(FuncDef, expr)
         @Test f.head == :->
