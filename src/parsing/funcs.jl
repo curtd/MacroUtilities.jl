@@ -219,6 +219,10 @@ function _from_expr(::Type{FuncCall}, expr; normalize_kwargs::Bool=false)
                 _args, _kwargs = _parse_args_kwargs(in_args)
             end
             (not_provided, _args, _kwargs)
+        @case Expr(:..., in_args)
+            (not_provided, Any[expr], nothing)
+        @case ::Symbol
+            (not_provided, Any[expr], nothing)
         @case _ 
             return ArgumentError("Input expression `$expr` is not a function call expression")
     end

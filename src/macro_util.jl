@@ -5,7 +5,18 @@ inner_param(@nospecialize x) = x
 get_constant_func((@nospecialize x)) = nothing
 constant_key_type((@nospecialize x)) = Any 
 
-function method_def_constants_expr( ref_method, get_constant_method, ValType::Union{Symbol, Expr}=:Val; concrete_type_matches_only::Bool=false, _sourceinfo::Union{Nothing, LineNumberNode}=nothing, ValueType=:Any)
+"""
+    default_extract_const_expr(constants) -> Expr 
+
+Returns a `Expr` which generates a tuple from the given constants
+"""
+default_extract_const_expr(constants) = Expr(:tuple, map( eltype(constants) === Symbol ? QuoteNode : identity, constants)...)
+
+function method_def_constants_expr( ref_method, get_constant_method; map_expr=nothing, ValType::Union{Symbol, Expr}=:Val, concrete_type_matches_only::Bool=false, _sourceinfo::Union{Nothing, LineNumberNode}=nothing)
+    @nospecialize
+    if isnothing(map_expr)
+        map_expr = :($default_extract_const_expr)
+    end
     f = from_expr(FuncCall, ref_method)
     nargs = length(f.args)
     val_arg_index::Union{Nothing,Int} = nothing 
@@ -49,7 +60,7 @@ function method_def_constants_expr( ref_method, get_constant_method, ValType::Un
             function $__constant_method(world, source, T, self, _T)
                 @nospecialize
                 output = $ConstantType[$inner_param($Base.fieldtype(m.sig, $(val_arg_index+1))) for m in $Tricks._methods(typeof($ref_method_name), T, nothing, world) if $(methods_if_expr)]
-                ci = $Tricks.create_codeinfo_with_returnvalue([Symbol("#self#"), :_T], [:T], (:T,), Expr(:tuple, map($(ConstantType === :Symbol ? :QuoteNode : :($Base.identity)), output)...))
+                ci = $Tricks.create_codeinfo_with_returnvalue([Symbol("#self#"), :_T], [:T], (:T,), $(map_expr)(output))
                 ci.edges = $Tricks._method_table_all_edges_all_methods(typeof($ref_method_name), T, world)
                 return ci
             end
@@ -60,10 +71,15 @@ function method_def_constants_expr( ref_method, get_constant_method, ValType::Un
             end
         end
     else
+        if VERSION ≥ v"1.7"
+            output_expr = :($(map_expr)(output))
+        else
+            output_expr = :(Expr(:tuple, map($(ConstantType === :Symbol ? :QuoteNode : :($Base.identity)), output)...))
+        end
         constant_method_def = :(@inline @generated function $_constant_method(_T::Type{T}) where {T<:Tuple}
             $_sourceinfo
             output = $ConstantType[$inner_param($Base.fieldtype(m.sig, $(val_arg_index+1))) for m in $Tricks._methods(typeof($ref_method_name), T) if $(methods_if_expr)]
-            ci = $Tricks.create_codeinfo_with_returnvalue([Symbol("#self#"), :_T], [:T], (:T,), Expr(:tuple, map($(ConstantType === :Symbol ? :QuoteNode : :($Base.identity)), output)...))
+            ci = $Tricks.create_codeinfo_with_returnvalue([Symbol("#self#"), :_T], [:T], (:T,), $(output_expr))
             ci.edges = $Tricks._method_table_all_edges_all_methods(typeof($ref_method_name), T)
             return ci
         end)
@@ -81,7 +97,7 @@ function method_def_constants_expr( ref_method, get_constant_method, ValType::Un
 end
 
 """
-    @method_def_constant [ValType=Val] method_call get_constant_method
+    @method_def_constant [ValType=Val] [map_expr] method_call get_constant_method
 
 Given a `method_call` expression of the form `f(::Type{T1}, ::Type{T2}, ..., ::Type{Ti}, ::ValType{::S}, ::Type{Ti+1}, ..., ::Type{Tn})`, generates a method definition for `get_constant_method` which returns an iterable with element type `S` of all of the compile-time constants contained in the `ValType` parameter of each definition of `f`. 
 
@@ -89,19 +105,18 @@ Given a `method_call` expression of the form `f(::Type{T1}, ::Type{T2}, ..., ::T
 
 `ValType` must be a singleton type with a single parameter. Define `MacroUtilities.inner_param` to extract the innermost type parameter for your own custom types. 
 
+If `map_expr` is provided, it must resolve to a function mapping the collection of constants of type `Vector{S}` to a `Expr`. Defaults to `MacroUtilities.default_extract_const_expr`. (Requires at least Julia 1.7)
+
 """
 macro method_def_constant(args...)
-    length(args) ≥ 1 || error("Must provide at least one argument")
-    @parse_kwargs args[1] begin 
+    length(args) ≥ 2 || error("Must provide at least two arguments")
+    @parse_kwargs args[1:end-2]... begin 
         ValType::Union{Symbol, Expr, Nothing} = nothing
+        map_expr::Union{Symbol, Expr, Nothing} = nothing
     end
+    method_call, get_constant_method_name = args[end-1], args[end]
     if isnothing(ValType)
         ValType = :Val
-        length(args) == 2 || error("Must provide exactly two arguments if `ValType` is not provided")
-        method_call, get_constant_method_name = args
-    else
-        length(args) == 3 || error("Must provide exactly three arguments when `ValType` is provided")
-        method_call, get_constant_method_name = args[2], args[3]
     end
-    return method_def_constants_expr(method_call, get_constant_method_name, ValType; _sourceinfo=__source__) |> esc
+    return method_def_constants_expr(method_call, get_constant_method_name; ValType=ValType, map_expr=map_expr, _sourceinfo=__source__) |> esc
 end

@@ -51,10 +51,10 @@ end
             :(A.f(z, args...; a::Int, kwargs...))                    | FuncCall(; funcname=:(A.f), args=[FuncArg(; name=:z), FuncArg(; name=:args, is_splat=true)], kwargs=MacroUtilities.OrderedDict( :a => FuncArg(; name=:a, type=:Int), :kwargs => FuncArg(; name=:kwargs, is_splat=true)))
             :(A.f(z, args...; a::Int, kwargs...))                    | FuncCall(; funcname=:(A.f), args=[FuncArg(; name=:z), FuncArg(; name=:args, is_splat=true)], kwargs=[FuncArg(; name=:a, type=:Int), FuncArg(; name=:kwargs, is_splat=true)])
             :(A.f(z, args...; a::Int, kwargs...))                    | FuncCall(; funcname=:(A.f), args=[FuncArg(; name=:z), FuncArg(; name=:args, is_splat=true)], kwargs=[:a => FuncArg(; name=:a, type=:Int), :kwargs => FuncArg(; name=:kwargs, is_splat=true)])
-
             @test isequal(from_expr(FuncCall, input), output)
             @test isequal(to_expr(output), input)
         end
+        @Test from_expr(FuncCall, :((args...))) == FuncCall(; funcname=not_provided, args=[FuncArg(; name=:args, is_splat=true)])
         args = [FuncArg(; value=:(f(x)))]
         v = [1,2,3]
         kwargs = MacroUtilities.OrderedDict(:b => FuncArg(; name=:b, value=v))
@@ -239,5 +239,17 @@ end
         f = from_expr(FuncDef, ex)
         g = FuncDef(f; return_type=:Int)
         @Test to_expr(g) == Expr(:(=), :($(ex.args[1])::Int), ex.args[2])
+
+        ex = :( ((args...,)) -> sum(args) )
+        f = from_expr(FuncDef, ex)
+        @Test to_expr(f) == ex
+
+        ex = :( ((args...)) -> sum(args) )
+        f = from_expr(FuncDef, ex)
+        @Test f.header.args[1] == FuncArg(; name=:args, is_splat=true)
+
+        ex = :( (args)->sum(args) )
+        f = from_expr(FuncDef, ex)
+        @Test f.header.args[1] == FuncArg(; name=:args)
     end
 end
