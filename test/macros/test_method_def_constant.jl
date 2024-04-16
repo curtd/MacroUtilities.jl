@@ -10,6 +10,11 @@ function func2_for_constant end
 
 @method_def_constant func2_for_constant(::Type{String}, ::Val{::Symbol}, ::Type{<:Real}) constant_from_func2
 
+function func3_for_constant end
+constant_expr_map(output) = to_expr(NamedTupleExpr([NamedTupleArg(; key, value=:($func3_for_constant(Val{$(QuoteNode(key))}())), kw_head=false) for key in output]))
+@method_def_constant map_expr=constant_expr_map func3_for_constant(::Val{::Symbol}) constants_from_func3
+
+
 @testset "@method_def_constant" begin 
     @Test hasmethod(constant_from_func1, Tuple{})
     @Test constant_from_func1() == ()
@@ -29,4 +34,15 @@ function func2_for_constant end
     @Test consts isa Tuple && eltype(consts) == Symbol && length(consts) == 2
     @Test Set(consts) == Set((:key2, :key1))
     @Test isempty(constant_from_func2(String, Int))
+
+    consts = @inferred constants_from_func3()  
+    @Test isempty(consts)
+    @eval func3_for_constant(::Val{:key1}) = String 
+    consts = @inferred constants_from_func3()  
+    @Test consts == (key1=String,)
+    @eval func3_for_constant(::Val{:key3}) = Int 
+    consts = @inferred constants_from_func3()  
+    @Test Set(keys(consts)) == Set([:key1, :key3])
+    @Test Set(values(consts)) == Set([String, Int])
+    
 end
