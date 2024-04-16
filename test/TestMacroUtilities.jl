@@ -2,10 +2,10 @@ module TestMacroUtilities
     using MacroUtilities, MacroUtilities.MLStyle
     using TestingUtilities, Test 
 
-    if VERSION ≥ v"1.7"
+    if VERSION ≥ v"1.9"
         macro testthrows(msg, ex)
             return quote 
-                Test.@test_throws $msg $ex
+                $Test.@test_throws $msg $ex
             end |> esc 
         end
     else

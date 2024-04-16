@@ -187,12 +187,12 @@ end
             @test arg1 == 2
         end
 
-        if VERSION ≥ v"1.7"
-            @test_throws "Expected type of `arg1` to be Int, got typeof(arg1) = Float64" @eval module A 
-                import ..@ex_macro3 
-                @ex_macro3 1.0
-            end
+    
+        @testthrows "Expected type of `arg1` to be Int, got typeof(arg1) = Float64" @eval module A 
+            import ..@ex_macro3 
+            @ex_macro3 1.0
         end
+    
 
     end
 end

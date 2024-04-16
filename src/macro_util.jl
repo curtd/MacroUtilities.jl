@@ -71,10 +71,15 @@ function method_def_constants_expr( ref_method, get_constant_method; map_expr=no
             end
         end
     else
+        if VERSION ≥ v"1.7"
+            output_expr = :($(map_expr)(output))
+        else
+            output_expr = :(Expr(:tuple, map($(ConstantType === :Symbol ? :QuoteNode : :($Base.identity)), output)...))
+        end
         constant_method_def = :(@inline @generated function $_constant_method(_T::Type{T}) where {T<:Tuple}
             $_sourceinfo
             output = $ConstantType[$inner_param($Base.fieldtype(m.sig, $(val_arg_index+1))) for m in $Tricks._methods(typeof($ref_method_name), T) if $(methods_if_expr)]
-            ci = $Tricks.create_codeinfo_with_returnvalue([Symbol("#self#"), :_T], [:T], (:T,), $(map_expr)(output))
+            ci = $Tricks.create_codeinfo_with_returnvalue([Symbol("#self#"), :_T], [:T], (:T,), $(output_expr))
             ci.edges = $Tricks._method_table_all_edges_all_methods(typeof($ref_method_name), T)
             return ci
         end)
@@ -100,7 +105,7 @@ Given a `method_call` expression of the form `f(::Type{T1}, ::Type{T2}, ..., ::T
 
 `ValType` must be a singleton type with a single parameter. Define `MacroUtilities.inner_param` to extract the innermost type parameter for your own custom types. 
 
-If `map_expr` is provided, it must resolve to a function mapping the collection of constants of type `Vector{S}` to a `Expr`. Defaults to `MacroUtilities.default_extract_const_expr`.
+If `map_expr` is provided, it must resolve to a function mapping the collection of constants of type `Vector{S}` to a `Expr`. Defaults to `MacroUtilities.default_extract_const_expr`. (Requires at least Julia 1.7)
 
 """
 macro method_def_constant(args...)
@@ -113,5 +118,5 @@ macro method_def_constant(args...)
     if isnothing(ValType)
         ValType = :Val
     end
-    return method_def_constants_expr(method_call, get_constant_method_name; ValType, map_expr, _sourceinfo=__source__) |> esc
+    return method_def_constants_expr(method_call, get_constant_method_name; ValType=ValType, map_expr=map_expr, _sourceinfo=__source__) |> esc
 end
