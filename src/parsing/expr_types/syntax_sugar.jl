@@ -41,6 +41,9 @@ end
 
 function to_expr(f::NestedDotExpr)
     key1, rest = Iterators.peel(f.keys)
+    @static if VERSION < v"1.7"
+        isempty(rest) && return key1
+    end
     y = Iterators.peel(rest)
     isnothing(y) && return key1   
     key2, rest = y
