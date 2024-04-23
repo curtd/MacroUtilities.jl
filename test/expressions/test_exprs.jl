@@ -28,20 +28,16 @@
         @testthrows "Input expression `f(a)` is not a list expression" from_expr(Vector{Bool}, :(f(a)), throw_error=true)
     end
     @testset "NestedDotExpr" begin 
-        ex = :(A.b)
-        f = from_expr(NestedDotExpr, ex)
-        @Test f.keys == [:A, :b]
-        @Test to_expr(f) == ex
+        @test_cases begin 
+            expr        | f
+            :A          | NestedDotExpr([:A])
+            :(A.b)      | NestedDotExpr([:A, :b])
+            :(A.b.c)    | NestedDotExpr([:A, :b, :c])
+            :(A.b.c.d.e)| NestedDotExpr([:A, :b, :c, :d, :e])
+            @test from_expr(NestedDotExpr, expr) == f 
+            @test to_expr(f) == expr
+        end
 
-        ex = :(A.b.c)
-        f = from_expr(NestedDotExpr, ex)
-        @Test f.keys == [:A, :b, :c]
-        @Test to_expr(f) == ex
-        
-        ex = :(A.b.c.d.e)
-        f = from_expr(NestedDotExpr, ex)
-        @Test f.keys == [:A, :b, :c, :d, :e]
-        @Test to_expr(f) == ex
         @testthrows "Input expression `f(x)` is not a dot expression" from_expr(NestedDotExpr, :(f(x)); throw_error=true)
     end
 
