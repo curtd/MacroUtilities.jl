@@ -27,7 +27,9 @@ function _parse_dotted_expr!(result::Vector{Symbol}, expr)
 end
 
 function _from_expr(::Type{NestedDotExpr}, expr)
-    if Meta.isexpr(expr, :.)
+    if expr isa Symbol
+        return NestedDotExpr([expr])
+    elseif Meta.isexpr(expr, :.)
         result = Symbol[]
         returned = _parse_dotted_expr!(result, expr)
         returned isa Exception && return returned 
@@ -39,7 +41,9 @@ end
 
 function to_expr(f::NestedDotExpr)
     key1, rest = Iterators.peel(f.keys)
-    key2, rest = Iterators.peel(rest)
+    y = Iterators.peel(rest)
+    isnothing(y) && return key1   
+    key2, rest = y
     output = Expr(:., key1, QuoteNode(key2))
     for key in rest
         output = Expr(:., output, QuoteNode(key))
