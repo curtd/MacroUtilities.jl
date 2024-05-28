@@ -9,7 +9,7 @@ Base.@kwdef struct MacroCall <: AbstractExpr
     args::Vector{Any} = Any[]
 end
 
-function Base.show(io::IO, m::MacroCall)
+function Base.show(io::IO, ::MIME"text/plain", m::MacroCall)
     print(io, "MacroCall - ", to_expr(m))
 end
 

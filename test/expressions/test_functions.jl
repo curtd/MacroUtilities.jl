@@ -2,6 +2,11 @@ module TestModule
     function f end 
 end
 
+macro func_doc(ex)
+    f = from_expr(FuncDef, ex; throw_error=true)
+    return QuoteNode(f.doc)
+end
+
 @testset "Function parsing" begin 
     @testset "FuncArg" begin 
         @test_cases begin 
@@ -120,9 +125,14 @@ end
         g = map_kwargs(t->FuncArg(t; name=Symbol(uppercase(string(t.name)))), f)
         @test to_expr(g).args[2].args[4].args[1].args[1] == :(f(a::T, b::Int; KEY1 = "abc", KWARGS...))
 
+        lnn = LineNumberNode(1, "here.jl")
+        ex = Expr(:block, lnn, Expr(:macrocall, MacroUtilities.doc_macro.name, lnn, Expr(:string, "f(a, b; key1, kwargs...)\n", :value), :(function f(a::T, b::Int; key1="abc", kwargs...)::Nothing where {T}
+        return nothing
+        end)))
         ex = quote 
             """
                 f(a, b; key1, kwargs...)
+                \$(value)
             """
             function f(a::T, b::Int; key1="abc", kwargs...)::Nothing where {T}
                 return nothing
@@ -137,6 +147,17 @@ end
         @Test isequal(f.doc, ex.args[2].args[3])
 
         @Test to_expr(f) == ex
+
+        ex = @func_doc begin 
+            """
+                f(a, b; key1, kwargs...)
+                $(value)
+            """
+            function f(a::T, b::Int; key1="abc", kwargs...)::Nothing where {T}
+                return nothing
+            end
+        end
+        @Test isequal(ex, Expr(:string, "    f(a, b; key1, kwargs...)\n    ", :value, "\n"))
 
         ex = quote 
             function (a, b::Int=1, args...; c)
