@@ -285,7 +285,7 @@ Matches a function definition expression
 - `return_type::Any = not_provided`
 - `body::Any`
 - `line::Union{LineNumberNode, NotProvided} = not_provided`
-- `doc::Union{String, NotProvided} = not_provided`
+- `doc::Union{Expr, String, NotProvided} = not_provided`
 """
 Base.@kwdef struct FuncDef <: AbstractExpr
     header::FuncCall
@@ -294,7 +294,7 @@ Base.@kwdef struct FuncDef <: AbstractExpr
     return_type::Any = not_provided
     body::Any
     line::Union{LineNumberNode, NotProvided} = not_provided
-    doc::Union{String, NotProvided} = not_provided
+    doc::Union{Expr, String, NotProvided} = not_provided
 end
 
 """
@@ -327,7 +327,7 @@ function _from_expr(::Type{FuncDef}, expr; normalize_kwargs::Bool=false)
             else
                 m = _from_expr(MacroCall, arg)
                 if m isa MacroCall && m.name == doc_macro.name && length(m.args) == 2
-                    doc = m.args[1]::String 
+                    doc = m.args[1]::Union{String, Expr}
                     expr = m.args[2]
                 else 
                     expr = arg
@@ -386,7 +386,7 @@ function to_expr(f::FuncDef)
         header_expr = Expr(:where, header_expr, f.whereparams...)
     end
     func_expr = Expr(f.head, header_expr, f.body)
-    if f.doc isa String 
+    if is_provided(f.doc)
         func_expr = to_expr(doc_macro( f.line isa LineNumberNode ? f.line : nothing, f.doc, func_expr ))
         func_expr = Expr(:block, func_expr)
     end
@@ -399,6 +399,6 @@ function to_expr(f::FuncDef)
     return func_expr
 end
 
-function Base.show(io::IO, f::FuncDef)
+function Base.show(io::IO, ::MIME"text/plain", f::FuncDef)
     print(io, "FuncDef - ", to_expr(f))
 end
