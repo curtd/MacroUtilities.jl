@@ -42,7 +42,7 @@ FuncArg(name::Symbol, value; is_splat::Bool=false) = FuncArg(; name=name, value=
 
 Base.:(==)(x::FuncArg, y::FuncArg) = all(getfield(x,k) == getfield(y,k) for k in fieldnames(FuncArg))
 
-function Base.show(io::IO, f::FuncArg)
+function Base.show(io::IO, ::MIME"text/plain", f::FuncArg)
     print(io, "FuncArg")
     if is_not_provided(f.name)
         if is_not_provided(f.type)
@@ -269,7 +269,7 @@ function to_expr(f::FuncCall)
     return output
 end
 
-function Base.show(io::IO, f::FuncCall)
+function Base.show(io::IO, ::MIME"text/plain", f::FuncCall)
     print(io, "FuncCall - ", to_expr(f))
 end
 
@@ -302,7 +302,7 @@ end
 
 Returns a new copy of `f`, with optional `header`, `head`, `whereparams`, `return_type`, `body`, `line`, or `doc` values overridden by the keyword arguments. 
 """
-function FuncDef(f::FuncDef; header::FuncCall=FuncCall(f.header), head::Symbol=f.head, whereparams=copy_value(f.whereparams), return_type=copy_value(f.return_type), body=copy_value(f.body), line::Union{LineNumberNode, NotProvided}=f.line, doc::Union{String, NotProvided}=f.doc)
+function FuncDef(f::FuncDef; header::FuncCall=FuncCall(f.header), head::Symbol=f.head, whereparams=copy_value(f.whereparams), return_type=copy_value(f.return_type), body=copy_value(f.body), line::Union{LineNumberNode, NotProvided}=f.line, doc::Union{String, Expr, NotProvided}=f.doc)
     return FuncDef(header, head, whereparams, return_type, body, line, doc)
 end
 

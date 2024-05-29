@@ -35,7 +35,7 @@ function default_copy_expr(name, t)
         if typeof($name) in (String, Symbol, Missing, Nothing)
             $name
         else
-            Base.copy($name)
+            $Base.copy($name)
         end
     end)
 end
