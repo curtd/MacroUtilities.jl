@@ -4,7 +4,8 @@ end
 
 macro func_doc(ex)
     f = from_expr(FuncDef, ex; throw_error=true)
-    return QuoteNode(f.doc)
+    g = FuncDef(f)
+    return QuoteNode(g.doc)
 end
 
 @testset "Function parsing" begin 

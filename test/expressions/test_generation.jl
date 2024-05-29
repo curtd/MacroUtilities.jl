@@ -43,11 +43,11 @@
         @Test c.header.kwargs[:key3].type == :Symbol
         for key in (:key1, :key2, :key3)
             @Test c.header.kwargs[key].value == Base.remove_linenums!(quote
-                local $key = Base.getfield(t, $(QuoteNode(key)))
-                if typeof($key) in (String, Symbol, Missing, Nothing)
+                local $key = $Base.getfield(t, $(QuoteNode(key)))
+                if typeof($key) in ($String, $Symbol, $Missing, $Nothing)
                     $key
                 else
-                    Base.copy($key)
+                    $Base.copy($key)
                 end
             end)
         end
@@ -70,11 +70,11 @@
         @Test c.header.kwargs[:key3].type == :F
         for key in (:key1, :key2, :key3)
             @Test c.header.kwargs[key].value == Base.remove_linenums!(quote
-                local $key = Base.getfield(t, $(QuoteNode(key)))
-                if typeof($key) in (String, Symbol, Missing, Nothing)
+                local $key = $Base.getfield(t, $(QuoteNode(key)))
+                if typeof($key) in ($String, $Symbol, $Missing, $Nothing)
                     $key
                 else
-                    Base.copy($key)
+                    $Base.copy($key)
                 end
             end)
         end
