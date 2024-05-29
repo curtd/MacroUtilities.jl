@@ -1,7 +1,7 @@
 name = "MacroUtilities"
 uuid = "274a0f0b-05f4-4024-87ff-de4a5b524b4f"
 authors = ["Curt Da Silva <curt.dasilva@gmail.com>"]
-version = "1.17.0"
+version = "1.17.1"
 
 [deps]
 MLStyle = "d8e11817-5142-5d16-987a-aa16d5891078"
