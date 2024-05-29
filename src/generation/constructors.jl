@@ -32,7 +32,7 @@ Copies the value from the input expression `t` if `typeof(t)` is not a `String`,
 function default_copy_expr(name, t)
     return Base.remove_linenums!(quote 
         local $name=$t
-        if typeof($name) in (String, Symbol, Missing, Nothing)
+        if typeof($name) in ($String, $Symbol, $Missing, $Nothing)
             $name
         else
             $Base.copy($name)
@@ -58,7 +58,7 @@ function copy_constructor(typename, fields::Vector{TypedVar}; input_var::Symbol=
     header = FuncCall(; funcname=typename, args=[FuncArg(; name=input_var, type=typename_w_params)])
     body = FuncCall(; funcname=typename)
     for field in fields 
-        header.kwargs[field.name] = FuncArg(; name=field.name, type=field.type, value=copy_expr(field.name, :(Base.getfield($input_var, $(QuoteNode(field.name))))))
+        header.kwargs[field.name] = FuncArg(; name=field.name, type=field.type, value=copy_expr(field.name, :($Base.getfield($input_var, $(QuoteNode(field.name))))))
         push!(body.args, FuncArg(; name=field.name))
     end
     body = Expr(:block, to_expr(body))
