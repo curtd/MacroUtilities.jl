@@ -1,4 +1,4 @@
-@testset "Struct parsing" begin 
+@testitem "Struct parsing" setup=[TestSetup] begin 
     @testset "StructDefHeader" begin 
         @test_cases begin 
             input                   |       output 

@@ -1,4 +1,4 @@
-@testset "Block expressions" begin 
+@testitem "Block expressions" setup=[TestSetup] begin
     @testset "IfElseExpr" begin 
         ex = :(if a b end)
         f = from_expr(IfElseExpr, ex)

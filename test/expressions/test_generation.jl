@@ -1,4 +1,4 @@
-@testset "Expr Generation" begin 
+@testitem "Expr Generation" setup=[TestSetup] begin 
     @testset "kwarg_constructor" begin 
         ex = :(struct A 
             key1::String 
