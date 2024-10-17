@@ -1,87 +1,87 @@
-function test_unpack_options1(ex)
-    options = from_expr(NamedTupleExpr, ex)
-    @unpack_option options a::Int
-    return a+1
-end
-function test_unpack_options2(ex)
-    options = from_expr(NamedTupleExpr, ex)
-    @unpack_option options b::Bool
-    return !b
-end
-function test_unpack_options3(ex)
-    options = from_expr(NamedTupleExpr, ex)
-    @unpack_option options a::Int = 0
-    return a
-end
-function test_unpack_options4(ex)
-    options = from_expr(NamedTupleExpr, ex)
-    @unpack_option options a::Union{Symbol, Int} = :abc
-    return a
-end
-function test_unpack_options5(ex)
-    options = from_expr(NamedTupleExpr, ex)
-    @unpack_option options b::Bool = 1
-    return !b
-end
-function test_unpack_options6(options)
-    @unpack_option options a::Int 
-    return a+1
-end
-function test_unpack_options7(ex)
-    options = from_expr(NamedTupleExpr, ex)
-    @unpack_option options a::Int 
-    @unpack_option options b::Int 
-    return a+b
-end
-function test_unpack_rename1(ex)
-    options = from_expr(NamedTupleExpr, ex)
-    @unpack_option options (a=>b)
-    return (b, @isdefined a)
-end
-function test_unpack_rename2(ex)
-    options = from_expr(NamedTupleExpr, ex)
-    @unpack_option options (a=>b)::Int 
-    return (b, @isdefined a)
-end
-function test_unpack_rename3(ex)
-    options = from_expr(NamedTupleExpr, ex)
-    @unpack_option options (a=>b) = 1
-    return b, @isdefined a
-end
-function test_unpack_options1throws(ex)
-    options = from_expr(NamedTupleExpr, ex)
-    @unpack_option should_throw=true options a::Int
-    return a+1
-end
-
-   
-macro ex_macro3(arg1)
-    @assert_type arg1 Int
-    return quote 
-        arg1 = $arg1 
-    end |> esc
-end
-
-function test_func_sub(ex)
-    @switch ex begin 
-        @case Expr(:(=), arg1, arg2)
-            return (arg1, arg2)
-        @case _ 
-            return @arg_error ex "Uhoh"
+@testitem "Parsing macros" setup=[TestSetup] begin 
+    function test_unpack_options1(ex)
+        options = from_expr(NamedTupleExpr, ex)
+        @unpack_option options a::Int
+        return a+1
     end
-end
-function test_func(ex)
-    @return_if_exception arg1, arg2 = test_func_sub(ex)
-    return (arg1, arg2)
-end
+    function test_unpack_options2(ex)
+        options = from_expr(NamedTupleExpr, ex)
+        @unpack_option options b::Bool
+        return !b
+    end
+    function test_unpack_options3(ex)
+        options = from_expr(NamedTupleExpr, ex)
+        @unpack_option options a::Int = 0
+        return a
+    end
+    function test_unpack_options4(ex)
+        options = from_expr(NamedTupleExpr, ex)
+        @unpack_option options a::Union{Symbol, Int} = :abc
+        return a
+    end
+    function test_unpack_options5(ex)
+        options = from_expr(NamedTupleExpr, ex)
+        @unpack_option options b::Bool = 1
+        return !b
+    end
+    function test_unpack_options6(options)
+        @unpack_option options a::Int 
+        return a+1
+    end
+    function test_unpack_options7(ex)
+        options = from_expr(NamedTupleExpr, ex)
+        @unpack_option options a::Int 
+        @unpack_option options b::Int 
+        return a+b
+    end
+    function test_unpack_rename1(ex)
+        options = from_expr(NamedTupleExpr, ex)
+        @unpack_option options (a=>b)
+        return (b, @isdefined a)
+    end
+    function test_unpack_rename2(ex)
+        options = from_expr(NamedTupleExpr, ex)
+        @unpack_option options (a=>b)::Int 
+        return (b, @isdefined a)
+    end
+    function test_unpack_rename3(ex)
+        options = from_expr(NamedTupleExpr, ex)
+        @unpack_option options (a=>b) = 1
+        return b, @isdefined a
+    end
+    function test_unpack_options1throws(ex)
+        options = from_expr(NamedTupleExpr, ex)
+        @unpack_option should_throw=true options a::Int
+        return a+1
+    end
 
-function test_func2(ex)
-    f = from_expr(NamedTupleExpr, ex)
-    @return_if_exception @unpack_option f a::Int 
-    return a+2
-end
+    
+    macro ex_macro3(arg1)
+        @assert_type arg1 Int
+        return quote 
+            arg1 = $arg1 
+        end |> esc
+    end
 
-@testset "Parsing Macros" begin 
+    function test_func_sub(ex)
+        @switch ex begin 
+            @case Expr(:(=), arg1, arg2)
+                return (arg1, arg2)
+            @case _ 
+                return @arg_error ex "Uhoh"
+        end
+    end
+    function test_func(ex)
+        @return_if_exception arg1, arg2 = test_func_sub(ex)
+        return (arg1, arg2)
+    end
+
+    function test_func2(ex)
+        f = from_expr(NamedTupleExpr, ex)
+        @return_if_exception @unpack_option f a::Int 
+        return a+2
+    end
+
     @testset "@return_if_exception" begin 
         y = test_func(:(a = b))
         @Test y == (:a, :b)

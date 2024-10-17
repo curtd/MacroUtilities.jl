@@ -1,4 +1,4 @@
-@testset "Expressions" begin 
+@testitem "Expressions" setup=[TestSetup] begin 
     @testset "to_expr" begin 
         @test_cases begin 
             input                  |       output

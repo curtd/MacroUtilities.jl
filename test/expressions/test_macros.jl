@@ -1,14 +1,14 @@
-macro ex_macro4(ex)
-    f = from_expr(FuncDef, ex)
-    return to_expr(__doc__macro(f)) |> esc 
-end
+@testitem "Macros parsing" setup=[TestSetup] begin 
+    macro ex_macro4(ex)
+        f = from_expr(FuncDef, ex)
+        return to_expr(__doc__macro(f)) |> esc 
+    end
 
-"""
-    some docs
-"""
-@ex_macro4 ex_macro4_func(x) = 1
+    """
+        some docs
+    """
+    @ex_macro4 ex_macro4_func(x) = 1
 
-@testset "Macro parsing" begin 
     @testset "MacroCall" begin 
         @test_cases begin 
             input                                   | output 

@@ -1,11 +1,8 @@
-using MacroUtilities
-using Test 
+using TestItemRunner, TestItems
 
-if VERSION ≥ v"1.9"
-    using Aqua
-    Aqua.test_all(MacroUtilities)
+@testsnippet TestSetup begin 
+    using MacroUtilities
+    include(joinpath(pkgdir(MacroUtilities), "test/setup.jl"))
 end
 
-@testset "MacroUtilities.jl" begin 
-    include("TestMacroUtilities.jl")
-end
+@run_package_tests verbose=true
