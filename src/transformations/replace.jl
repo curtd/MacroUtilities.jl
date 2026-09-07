@@ -46,6 +46,7 @@ struct ReplaceSymbols
     expr
     to_replace::Set{Symbol}
     function ReplaceSymbols(expr, to_replace::Set{Symbol})
+        @nospecialize
         _, was_arg_replaced = replace_symbols(expr, [r => r for r in to_replace])
         !was_arg_replaced && return nothing 
         return new(expr, to_replace)
@@ -55,6 +56,7 @@ end
 ReplaceSymbols(expr, to_replace::Symbol...) = ReplaceSymbols(expr, Set(to_replace))
 
 function (r::ReplaceSymbols)(new_to_replace::Pair{Symbol, <:Any}...)
+    @nospecialize
     replace_values = Pair{Symbol, Any}[]
     for p in new_to_replace
         if first(p) in r.to_replace

@@ -1,7 +1,9 @@
 module MacroUtilities
 
-    using MLStyle, OrderedCollections, PrecompileTools, Tricks
+    using MLStyle, PrecompileTools, Tricks
 
+    using OrderedCollections: OrderedDict
+    
     # General utilities 
     export @assert_type
 

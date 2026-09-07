@@ -10,7 +10,7 @@ constant_key_type((@nospecialize x)) = Any
 
 Returns a `Expr` which generates a tuple from the given constants
 """
-default_extract_const_expr(constants) = Expr(:tuple, map( eltype(constants) === Symbol ? QuoteNode : identity, constants)...)
+default_extract_const_expr(@nospecialize(constants)) = Expr(:tuple, map( eltype(constants) === Symbol ? QuoteNode : identity, constants)...)
 
 function method_def_constants_expr( ref_method, get_constant_method; map_expr=nothing, ValType::Union{Symbol, Expr}=:Val, concrete_type_matches_only::Bool=false, _sourceinfo::Union{Nothing, LineNumberNode}=nothing)
     @nospecialize
