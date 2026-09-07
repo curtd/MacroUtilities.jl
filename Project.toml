@@ -11,7 +11,7 @@ Tricks = "410a4b4d-49e4-4fbc-ab6d-cb71b17b3775"
 
 [compat]
 MLStyle = "0.4.17"
-OrderedCollections = "1"
+OrderedCollections = "1, 2"
 PrecompileTools = "1"
 Tricks = "0.1.8"
 julia = "1.6"
